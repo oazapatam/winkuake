@@ -157,6 +157,16 @@
         term.options.fontSize = m.size;
         fit.fit();
       }
+      else if (m && m.type === 'config') {
+        // Reconfigura xterm en caliente con valores del host.
+        if (typeof m.scrollback === 'number')
+          term.options.scrollback = m.scrollback;
+        if (typeof m.fontSize === 'number')
+          term.options.fontSize = m.fontSize;
+        if (m.theme && typeof m.theme === 'object')
+          term.options.theme = m.theme;
+        try { fit.fit(); } catch {}
+      }
     });
   }
 

@@ -76,12 +76,20 @@ Pivotamos de embeber `wt.exe` (chrome no se podía ocultar, clase de ventana cam
 - [x] `LoadCombined()` usado por MainWindow → dropdown muestra distros WSL aunque no estén en wt.
 - [x] 12 tests nuevos cubriendo parser + builder + traducción de paths + merge.
 
-## Fase 4 — UX adicional (sesión siguiente)
-- Settings window con tabs (Apariencia/Atajos/Comportamiento/Perfiles).
-- Tema seleccionable (Dracula/Nord/Gruvbox).
-- Hotkey configurable.
-- Status bar con info: cwd actual, shell activo, encoding.
-- Detector de "actualizar perfiles wt" en caliente.
+## Fase 4 — UX adicional  ✅
+- [x] AppSettings extendido: `ScrollbackLines` (-1=ilimitado, default), `TerminalThemeName`, `TerminalFontSize`.
+- [x] `TerminalTheme` modelo + 5 paletas: VSCode Dark+, Dracula, Nord, Gruvbox Dark, Monokai. 10 tests cubriendo.
+- [x] Settings window con nueva tab "Terminal": selector de tema, slider/textbox de fuente, combo de scrollback (Ilimitado / 1k / 10k / 50k / 100k).
+- [x] Hot-reload: al guardar, todos los `TerminalControl` reciben `SendConfigToTerminal()` con los nuevos valores.
+- [x] Status bar refleja shell activo con ícono (cuando cambias tab, muestra "🐧 Ubuntu" o "⚡ PowerShell").
+- [x] Bridge JS `case 'config'` aplica scrollback, fontSize y theme en caliente.
+
+## Fase 5 — Próximas (sesión siguiente)
+- CWD activo en status bar (requiere OSC 7 handler en xterm).
+- Splits horizontal/vertical (Alt+Shift+- y Alt+Shift++).
+- Drag-and-drop reorder de tabs.
+- Detección de cambios en settings.json de wt sin restart.
+- Hotkey personalizado para cada tab (cycle, jump-to-N).
 
 ---
 

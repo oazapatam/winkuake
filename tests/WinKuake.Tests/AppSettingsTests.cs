@@ -75,6 +75,24 @@ public class AppSettingsTests
     }
 
     [Fact]
+    public void ScrollbackLines_DefaultsToUnlimited()
+    {
+        // Convención: -1 significa "ilimitado" (en xterm se traduce a MAX_SAFE_INTEGER).
+        var s = new AppSettings();
+        Assert.Equal(-1, s.ScrollbackLines);
+    }
+
+    [Fact]
+    public void ScrollbackLines_PersistsThroughJson()
+    {
+        var src = new AppSettings { ScrollbackLines = 50000 };
+        var opts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var json = JsonSerializer.Serialize(src, opts);
+        var dst  = JsonSerializer.Deserialize<AppSettings>(json, opts)!;
+        Assert.Equal(50000, dst.ScrollbackLines);
+    }
+
+    [Fact]
     public void Json_LoadingPartialFile_FillsMissingWithDefaults()
     {
         // Sólo dos campos en el JSON: el resto debe quedar con defaults.

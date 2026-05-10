@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using WinKuake.Models;
+using WinKuake.Services;
 
 namespace WinKuake.Views;
 
@@ -43,6 +45,22 @@ public partial class SettingsWindow : Window
         TxtChromeFg.Text     = current.ChromeForegroundHex;
         TxtChromeBorder.Text = current.ChromeBorderHex;
         TxtAccent.Text       = current.AccentHex;
+
+        // Terminal: tema, fuente, scrollback.
+        CmbTheme.ItemsSource = TerminalTheme.All.Select(t => t.Name).ToArray();
+        CmbTheme.SelectedItem = TerminalTheme.FindOrDefault(current.TerminalThemeName).Name;
+
+        SldFontSize.Value = Math.Clamp(current.TerminalFontSize, 8, 32);
+        TxtFontSize.Text  = ((int)SldFontSize.Value).ToString(CultureInfo.InvariantCulture);
+        SldFontSize.ValueChanged += (_, _) =>
+            TxtFontSize.Text = ((int)SldFontSize.Value).ToString(CultureInfo.InvariantCulture);
+        TxtFontSize.TextChanged += (_, _) =>
+        {
+            if (int.TryParse(TxtFontSize.Text, out var v) && v is >= 8 and <= 32)
+                SldFontSize.Value = v;
+        };
+
+        SelectScrollbackItem(current.ScrollbackLines);
 
         SyncBoxesFromSliders();
         UpdateSwatches();
@@ -139,8 +157,34 @@ public partial class SettingsWindow : Window
         ChromeBackgroundHex = s.ChromeBackgroundHex,
         ChromeBorderHex     = s.ChromeBorderHex,
         ChromeForegroundHex = s.ChromeForegroundHex,
-        AccentHex           = s.AccentHex
+        AccentHex           = s.AccentHex,
+        ScrollbackLines     = s.ScrollbackLines,
+        TerminalThemeName   = s.TerminalThemeName,
+        TerminalFontSize    = s.TerminalFontSize,
     };
+
+    private void SelectScrollbackItem(int value)
+    {
+        foreach (var obj in CmbScrollback.Items)
+        {
+            if (obj is ComboBoxItem item && item.Tag is string tag
+                && int.TryParse(tag, out var v) && v == value)
+            {
+                CmbScrollback.SelectedItem = item;
+                return;
+            }
+        }
+        // Si el valor guardado no está en la lista, dejamos "Ilimitado" (-1).
+        CmbScrollback.SelectedIndex = 0;
+    }
+
+    private int ReadScrollback()
+    {
+        if (CmbScrollback.SelectedItem is ComboBoxItem item && item.Tag is string tag
+            && int.TryParse(tag, out var v))
+            return v;
+        return -1;
+    }
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
@@ -167,6 +211,10 @@ public partial class SettingsWindow : Window
         Result.ChromeForegroundHex = NormalizeHex(TxtChromeFg.Text,     Result.ChromeForegroundHex);
         Result.ChromeBorderHex     = NormalizeHex(TxtChromeBorder.Text, Result.ChromeBorderHex);
         Result.AccentHex           = NormalizeHex(TxtAccent.Text,       Result.AccentHex);
+
+        Result.TerminalThemeName = CmbTheme.SelectedItem?.ToString() ?? "VSCode Dark+";
+        Result.TerminalFontSize  = (int)SldFontSize.Value;
+        Result.ScrollbackLines   = ReadScrollback();
 
         DialogResult = true;
         Close();

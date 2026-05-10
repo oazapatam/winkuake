@@ -152,6 +152,12 @@ public partial class MainWindow : Window
             kv.Value.Visibility = (kv.Key == active?.Id) ? Visibility.Visible : Visibility.Collapsed;
         foreach (var tab in Tabs)
             tab.IsActive = (tab.Index == active?.Id);
+
+        // Status bar refleja el perfil activo.
+        if (active?.Profile is { } p)
+            StatusTitle.Text = $"{ProfileIconHelper.GlyphFor(p)}  {p.DisplayName}";
+        else
+            StatusTitle.Text = "WinKuake";
     }
 
     private void OnDeactivated(object? sender, EventArgs e)
@@ -326,6 +332,10 @@ public partial class MainWindow : Window
             _hotkey.HotkeyPressed += ToggleVisibility;
 
             AutoStartService.SetEnabled(_settings.StartWithWindows);
+
+            // Aplicar tema/scrollback/fontSize en caliente a todas las sesiones.
+            foreach (var ctrl in _controls.Values)
+                ctrl.ApplyCurrentSettings();
         }
     }
 

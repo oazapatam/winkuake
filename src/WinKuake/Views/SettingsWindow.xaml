@@ -108,6 +108,43 @@
                 </ScrollViewer>
             </TabItem>
 
+            <!-- =================== TERMINAL =================== -->
+            <TabItem Header="Terminal">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="14">
+
+                        <TextBlock Text="Tema" FontWeight="SemiBold" Margin="0,0,0,4" />
+                        <ComboBox x:Name="CmbTheme" Width="220" HorizontalAlignment="Left"
+                                  Margin="0,0,0,12" />
+
+                        <TextBlock Text="Tamaño de fuente (pt)" FontWeight="SemiBold" Margin="0,0,0,4" />
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="70" />
+                            </Grid.ColumnDefinitions>
+                            <Slider Grid.Column="0" x:Name="SldFontSize"
+                                    Minimum="8" Maximum="32" TickFrequency="1"
+                                    IsSnapToTickEnabled="True" />
+                            <TextBox Grid.Column="1" x:Name="TxtFontSize"
+                                     VerticalAlignment="Center" Margin="6,0,0,0"
+                                     ToolTip="Tamaño de fuente del terminal en puntos (8–32)." />
+                        </Grid>
+
+                        <TextBlock Text="Scrollback (historial)" FontWeight="SemiBold" Margin="0,0,0,4" />
+                        <TextBlock Text="Cuántas líneas guardar para hacer scroll hacia atrás. Ilimitado por defecto."
+                                   FontSize="11" Foreground="#9A9A9A" Margin="0,0,0,6" />
+                        <ComboBox x:Name="CmbScrollback" Width="220" HorizontalAlignment="Left">
+                            <ComboBoxItem Tag="-1"     Content="Ilimitado (recomendado)" />
+                            <ComboBoxItem Tag="1000"   Content="1 000 líneas" />
+                            <ComboBoxItem Tag="10000"  Content="10 000 líneas" />
+                            <ComboBoxItem Tag="50000"  Content="50 000 líneas" />
+                            <ComboBoxItem Tag="100000" Content="100 000 líneas" />
+                        </ComboBox>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
             <!-- =================== APARIENCIA =================== -->
             <TabItem Header="Apariencia">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">

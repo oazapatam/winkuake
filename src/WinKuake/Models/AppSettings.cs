@@ -32,6 +32,18 @@ public class AppSettings
     /// <summary>Duración de la animación slide en ms.</summary>
     public int AnimationMs { get; set; } = 180;
 
+    /// <summary>
+    /// Líneas de scrollback del terminal. <c>-1</c> = ilimitado (default).
+    /// Cualquier valor &gt; 0 se respeta tal cual.
+    /// </summary>
+    public int ScrollbackLines { get; set; } = -1;
+
+    /// <summary>Nombre del tema xterm (VSCode Dark+, Dracula, Nord, Gruvbox Dark, Monokai).</summary>
+    public string TerminalThemeName { get; set; } = "VSCode Dark+";
+
+    /// <summary>Tamaño de fuente del terminal en pt.</summary>
+    public int TerminalFontSize { get; set; } = 14;
+
     /// <summary>Índice de monitor (0 = primario). -1 = monitor activo.</summary>
     public int MonitorIndex { get; set; } = 0;
 

@@ -130,6 +130,7 @@ public partial class TerminalControl : UserControl
                     _webReady = true;
                     _lastCols = ReadShort(root, "cols", 120);
                     _lastRows = ReadShort(root, "rows", 30);
+                    SendConfigToTerminal();
                     if (_pendingCommandLine is not null)
                     {
                         var cmd = _pendingCommandLine;
@@ -177,6 +178,25 @@ public partial class TerminalControl : UserControl
         if (root.TryGetProperty(name, out var v) && v.TryGetInt32(out var i))
             return (short)Math.Clamp(i, 1, short.MaxValue);
         return fallback;
+    }
+
+    /// <summary>Envía settings reconfigurables (scrollback, fuente, tema) al terminal JS.</summary>
+    private void SendConfigToTerminal()
+    {
+        var s = SettingsService.Load();
+        long scrollback = s.ScrollbackLines == -1
+            ? 9007199254740991L
+            : Math.Max(100, s.ScrollbackLines);
+        var theme = TerminalTheme.FindOrDefault(s.TerminalThemeName).ToXtermJson();
+        var fontSize = Math.Clamp(s.TerminalFontSize, 8, 40);
+        var payload = $"{{\"type\":\"config\",\"scrollback\":{scrollback},\"fontSize\":{fontSize},\"theme\":{theme}}}";
+        WebView.CoreWebView2?.PostWebMessageAsJson(payload);
+    }
+
+    /// <summary>Re-aplica los settings actuales al terminal sin reiniciar.</summary>
+    public void ApplyCurrentSettings()
+    {
+        if (_webReady) SendConfigToTerminal();
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
