@@ -108,13 +108,20 @@ Pivotamos de embeber `wt.exe` (chrome no se podía ocultar, clase de ventana cam
   - Menú ≡ → Dividir vertical / Dividir horizontal enganchados.
   - **Limitación v1**: una sola subdivisión por sesión (no recursivo). Para más, usar nuevas tabs.
 
-## Fase 7 — Backlog (sesión siguiente)
-- Splits recursivos (split de un pane ya split).
-- Navegación entre panes con teclado (Alt+arrows).
-- Find global con `Ctrl+Shift+F` sobre TODOS los buffers activos.
-- Resaltar links no-http (paths a archivos) clickeables.
-- Snippets / quick commands.
-- Tema custom (editor de paleta).
+## Fase 7 — Splits avanzados y navegación  ✅
+- [x] **Splits recursivos**: TerminalControl rehecho con árbol `Border.Child` (leaf = pane, branch = Grid con 3 cells). Cada pane puede subdividirse las veces que quieras vertical u horizontalmente.
+- [x] Cerrar pane colapsa el split: el slot padre adopta el hermano (que puede ser pane u otro Grid).
+- [x] **Alt+ArrowUp/Down/Left/Right** → enfoca el pane vecino en esa dirección (heurística por geometría: rect más cercano que cumple constraint).
+- [x] **Links a archivos clickeables**: xterm `registerLinkProvider` detecta paths Windows (`C:\…`), Linux absolutos (`/…`) y relativos (`./`, `../`). Click → host abre con `ShellExecute`.
+  - Resolución de paths relativos contra `CurrentCwd` del pane.
+  - Traducción `/mnt/c/…` → `C:\…` para abrir archivos WSL desde Windows.
+
+## Fase 8 — Backlog
+- Snippets / quick command palette (overlay con search + lista, hotkey `Ctrl+Shift+P`).
+- Find global multi-buffer (`Ctrl+Shift+F` busca en TODOS los buffers a la vez con UI dedicada).
+- Editor de paleta custom (tab adicional en Settings).
+- Persistencia de splits (recordar layout al reabrir tab).
+- Broadcast input (escribir en varios panes a la vez).
 
 ---
 

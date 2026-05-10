@@ -39,6 +39,8 @@ public partial class TerminalPane : UserControl
     public event Action? SplitVerticalRequested;
     public event Action? ClosePaneRequested;
     public event Action? FocusReceived;
+    public event Action<string>? FocusPaneRequested;
+    public event Action<string>? OpenFileRequested;
 
     public TerminalPane()
     {
@@ -204,6 +206,17 @@ public partial class TerminalPane : UserControl
                 case "splitHorizontal": SplitHorizontalRequested?.Invoke(); break;
                 case "splitVertical":   SplitVerticalRequested?.Invoke();   break;
                 case "closePane":       ClosePaneRequested?.Invoke();       break;
+                case "focusPane":
+                    if (root.TryGetProperty("direction", out var dr))
+                        FocusPaneRequested?.Invoke(dr.GetString() ?? "");
+                    break;
+                case "openFile":
+                    if (root.TryGetProperty("path", out var fp))
+                    {
+                        var path = fp.GetString();
+                        if (!string.IsNullOrEmpty(path)) OpenFileRequested?.Invoke(path!);
+                    }
+                    break;
             }
         }
         catch (Exception ex) { CrashLogger.Log(ex); }
@@ -229,4 +242,9 @@ public partial class TerminalPane : UserControl
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e) => _pty.Dispose();
+
+    public void Dispose()
+    {
+        try { _pty.Dispose(); } catch { }
+    }
 }

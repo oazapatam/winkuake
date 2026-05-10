@@ -166,6 +166,7 @@ public partial class MainWindow : Window
         ctrl.ActivateAtRequested   += i => _sessions.ActivateAt(i);
         ctrl.MoveActiveByRequested += d => _sessions.MoveActiveBy(d);
         ctrl.SaveBufferRequested   += SaveBufferToFile;
+        ctrl.OpenFileRequested     += path => OpenFileFromTerminal(ctrl, path);
         ctrl.CwdChanged += cwd =>
         {
             if (_sessions.Active?.Id == s.Id) UpdateStatusForActive();
@@ -411,6 +412,27 @@ public partial class MainWindow : Window
     {
         var tab = Tabs.FirstOrDefault(t => t.Index == s.Id);
         if (tab is not null) tab.IsPinned = s.IsPinned;
+    }
+
+    private void OpenFileFromTerminal(TerminalControl ctrl, string path)
+    {
+        try
+        {
+            // Si es path WSL (/mnt/c/...) lo traducimos a Windows; si es path
+            // Linux puro (/home/foo) no podemos abrirlo desde explorer Windows.
+            var resolved = path;
+            if (resolved.StartsWith("/mnt/", StringComparison.Ordinal) && resolved.Length > 6 && resolved[6] == '/')
+            {
+                // /mnt/c/Users/foo → C:\Users\foo
+                resolved = char.ToUpperInvariant(resolved[5]) + ":\\" + resolved.Substring(7).Replace('/', '\\');
+            }
+            else if (!System.IO.Path.IsPathRooted(resolved) && !string.IsNullOrEmpty(ctrl.CurrentCwd))
+            {
+                resolved = System.IO.Path.Combine(ctrl.CurrentCwd, resolved);
+            }
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(resolved) { UseShellExecute = true });
+        }
+        catch (Exception ex) { CrashLogger.Log(ex); }
     }
 
     private void SaveBufferToFile(string buffer)

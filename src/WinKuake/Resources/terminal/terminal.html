@@ -263,6 +263,14 @@
       postToHost({ type: 'closePane' });
       return false;
     }
+    // Alt+Arrow{Up,Down,Left,Right} : navegar entre panes del split
+    if (ev.altKey && !ev.ctrlKey && !ev.shiftKey && (
+        ev.code === 'ArrowUp' || ev.code === 'ArrowDown' ||
+        ev.code === 'ArrowLeft' || ev.code === 'ArrowRight')) {
+      const dir = ev.code.replace('Arrow', '').toLowerCase();
+      postToHost({ type: 'focusPane', direction: dir });
+      return false;
+    }
     // Ctrl+Shift+S : guardar buffer en disco
     if (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyS') {
       // Capturamos todo el buffer (visible + scrollback) como texto.
@@ -277,6 +285,35 @@
     }
     return true;
   });
+
+  // ---- Link provider para paths a archivos ----------------------------------
+  // Detecta paths Windows (C:\foo), absolutos Linux (/usr/bin/foo) y relativos
+  // (./, ../). Click → host abre el archivo con su asociación default.
+  if (term.registerLinkProvider) {
+    const filePathRe = /(?:[A-Za-z]:[\\/][^\s"'<>|*?]+|\.{0,2}\/[^\s"'<>|*?:]+|\/[a-zA-Z][^\s"'<>|*?]+)/g;
+    term.registerLinkProvider({
+      provideLinks(y, callback) {
+        const line = term.buffer.active.getLine(y - 1);
+        if (!line) { callback([]); return; }
+        const text = line.translateToString(true);
+        const links = [];
+        let m;
+        filePathRe.lastIndex = 0;
+        while ((m = filePathRe.exec(text)) !== null) {
+          const startCol = m.index + 1;
+          const endCol = startCol + m[0].length - 1;
+          // Saltar URLs http/https — esas las maneja web-links addon.
+          if (/^https?:\/\//.test(m[0])) continue;
+          links.push({
+            range: { start: { x: startCol, y }, end: { x: endCol, y } },
+            text: m[0],
+            activate(_e, t) { postToHost({ type: 'openFile', path: t }); }
+          });
+        }
+        callback(links);
+      }
+    });
+  }
 
   // ---- OSC 7: el shell reporta su CWD ---------------------------------------
   // pwsh, bash con __vte_prompt_command, zsh con chpwd hook, etc., emiten
