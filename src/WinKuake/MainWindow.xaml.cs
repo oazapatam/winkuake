@@ -45,11 +45,12 @@ public partial class MainWindow : Window
 
     private static TerminalProfile[] LoadProfiles()
     {
-        var fromWt = WtProfileSource.Load();
-        if (fromWt.Count > 0)
+        // LoadCombined = perfiles wt + distros WSL detectadas que falten.
+        var combined = WtProfileSource.LoadCombined();
+        if (combined.Count > 0)
         {
             return new[] { new TerminalProfile("(predeterminado)", "") }
-                .Concat(fromWt).ToArray();
+                .Concat(combined).ToArray();
         }
         return new[]
         {

@@ -23,6 +23,53 @@ public static class WtProfileSource
         yield return Path.Combine(local, "Microsoft", "Windows Terminal", "settings.json");
     }
 
+    /// <summary>
+    /// Carga perfiles de wt y los une con distros WSL detectadas en el sistema
+    /// que no estuvieran ya presentes (heurística: commandline empieza por
+    /// <c>wsl.exe -d "&lt;name&gt;"</c>). Pensado para el caso de devs Linux que
+    /// instalan distros sin abrir wt.
+    /// </summary>
+    public static IReadOnlyList<TerminalProfile> LoadCombined()
+    {
+        var wt = Load();
+        var wsl = WslService.ListDistributions();
+        return Merge(wt, wsl);
+    }
+
+    /// <summary>
+    /// Junta perfiles wt con distros WSL, evitando duplicar las que ya estén
+    /// representadas. Lógica pura — testeable sin tocar disco ni procesos.
+    /// </summary>
+    public static IReadOnlyList<TerminalProfile> Merge(
+        IReadOnlyList<TerminalProfile> wtProfiles,
+        IReadOnlyList<WslDistribution> wslDistros)
+    {
+        var existingWslNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var p in wtProfiles)
+        {
+            if (p.CommandLine is null) continue;
+            // Heurística: si arranca por wsl.exe -d <name>, extraer name.
+            // Aceptamos con o sin comillas; el nombre termina en espacio.
+            var m = System.Text.RegularExpressions.Regex.Match(
+                p.CommandLine,
+                @"wsl\.exe\s+-d\s+""?(?<n>[^""\s]+)""?",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (m.Success) existingWslNames.Add(m.Groups["n"].Value);
+        }
+
+        var extras = new List<TerminalProfile>();
+        foreach (var d in wslDistros)
+        {
+            if (existingWslNames.Contains(d.Name)) continue;
+            extras.Add(new TerminalProfile(d.Name, d.Name)
+            {
+                CommandLine = WslService.BuildCommandLine(d.Name, loginShell: true, startAtHome: true),
+                IsDefault = d.IsDefault && !wtProfiles.Any(p => p.IsDefault),
+            });
+        }
+        return wtProfiles.Concat(extras).ToList();
+    }
+
     public static IReadOnlyList<TerminalProfile> Load()
     {
         var path = CandidatePaths().FirstOrDefault(File.Exists);
@@ -70,7 +117,12 @@ public static class WtProfileSource
                 var startingDir = p.TryGetProperty("startingDirectory", out var sd) && sd.ValueKind == JsonValueKind.String
                     ? sd.GetString() : null;
 
-                var resolvedCmd = ResolveCommandLine(name, commandline, source);
+                var expandedStartDir = ExpandPath(startingDir);
+                var resolvedCmd = ResolveCommandLine(name, commandline, source, expandedStartDir);
+                // Para WSL, BuildCommandLine ya incluyó --cd dentro del commandline;
+                // dejamos StartingDirectory en null para no pasarlo también a CreateProcess
+                // (sería interpretado por wsl.exe como path Windows otra vez).
+                var isWsl = string.Equals(source, "Windows.Terminal.Wsl", StringComparison.OrdinalIgnoreCase);
 
                 result.Add(new TerminalProfile(name, name)
                 {
@@ -78,7 +130,7 @@ public static class WtProfileSource
                     IconPath = ResolveIcon(icon),
                     IsDefault = guid is not null && string.Equals(guid, defaultGuid, StringComparison.OrdinalIgnoreCase),
                     CommandLine = resolvedCmd,
-                    StartingDirectory = ExpandPath(startingDir),
+                    StartingDirectory = isWsl ? null : expandedStartDir,
                 });
             }
             return result;
@@ -113,15 +165,21 @@ public static class WtProfileSource
     /// ejecutable con CreateProcess. Devuelve null si el perfil no es
     /// soportable (ej. Azure Cloud Shell).
     /// </summary>
-    private static string? ResolveCommandLine(string name, string? commandline, string? source)
+    public static string? ResolveCommandLine(string name, string? commandline, string? source, string? startingDirectory = null)
     {
-        // 1. Si el perfil define commandline explícito, úsalo.
+        // 1. Source-based: WSL distributions → siempre vía WslService para
+        //    obtener login-shell + cwd traducido a /mnt/.
+        if (string.Equals(source, "Windows.Terminal.Wsl", StringComparison.OrdinalIgnoreCase))
+        {
+            return WslService.BuildCommandLine(name,
+                loginShell: true,
+                startAtHome: string.IsNullOrWhiteSpace(startingDirectory),
+                windowsStartingDirectory: startingDirectory);
+        }
+
+        // 2. Si el perfil define commandline explícito, úsalo.
         if (!string.IsNullOrWhiteSpace(commandline))
             return Environment.ExpandEnvironmentVariables(commandline);
-
-        // 2. Source-based: WSL distributions.
-        if (string.Equals(source, "Windows.Terminal.Wsl", StringComparison.OrdinalIgnoreCase))
-            return $"wsl.exe -d \"{name}\"";
 
         // 3. Source-based: PowerShell Core.
         if (string.Equals(source, "Windows.Terminal.PowershellCore", StringComparison.OrdinalIgnoreCase))

@@ -60,11 +60,21 @@ Pivotamos de embeber `wt.exe` (chrome no se podía ocultar, clase de ventana cam
 
 ---
 
-## Fase 3 — Multi-tab (sesión siguiente)
-- Pool de `ConPtyService` + lista de `TerminalControl`.
-- Cambio rápido de tab activa (Ctrl+Tab, click).
-- `+` crea tab nueva con perfil activo, `⌄` con selector.
-- `✕` por tab funciona; al cerrar última → abre default, no app exit.
+## Fase 3 — Multi-tab  ✅
+- [x] `TerminalSessionsManager` con TDD (16 tests).
+- [x] Cada tab = `TerminalControl` propio (preserva buffer al cambiar).
+- [x] `+`, `⌄`, `✕` por tab, doble-click rename.
+- [x] Cerrar última → arranca default, no cierra app.
+
+## Fase WSL — Distros con login shell  ✅
+- [x] `WslService.ParseListVerbose` parsea `wsl.exe -l --verbose`.
+- [x] `WslService.BuildCommandLine` produce commandline con `--shell-type login` + `--cd ~` o `--cd /mnt/<letra>/...`.
+- [x] `WslService.TranslateWindowsPathToWsl` mapea `C:\…` → `/mnt/c/…`.
+- [x] Filtra `docker-desktop`/`docker-desktop-data` automáticamente.
+- [x] `WtProfileSource.ResolveCommandLine` usa `WslService` para perfiles wt-WSL (login shell ahora).
+- [x] `WtProfileSource.Merge` combina perfiles wt + distros WSL detectadas que falten.
+- [x] `LoadCombined()` usado por MainWindow → dropdown muestra distros WSL aunque no estén en wt.
+- [x] 12 tests nuevos cubriendo parser + builder + traducción de paths + merge.
 
 ## Fase 4 — UX adicional (sesión siguiente)
 - Settings window con tabs (Apariencia/Atajos/Comportamiento/Perfiles).
