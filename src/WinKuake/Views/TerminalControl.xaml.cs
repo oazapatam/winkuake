@@ -24,6 +24,13 @@ public partial class TerminalControl : UserControl
     private short _lastCols = 120;
     private short _lastRows = 30;
 
+    /// <summary>CWD actual reportado por el shell vía OSC 7. Null si nunca llegó.</summary>
+    public string? CurrentCwd { get; private set; }
+
+    public event Action<string>? CwdChanged;
+    public event Action? NextTabRequested;
+    public event Action? PrevTabRequested;
+
     public TerminalControl()
     {
         InitializeComponent();
@@ -164,6 +171,25 @@ public partial class TerminalControl : UserControl
                 case "debug":
                     if (root.TryGetProperty("msg", out var dm))
                         CrashLogger.Info("[js] " + dm.GetString());
+                    break;
+
+                case "cwd":
+                    if (root.TryGetProperty("path", out var pp))
+                    {
+                        var path = pp.GetString();
+                        if (!string.IsNullOrEmpty(path))
+                        {
+                            CurrentCwd = path;
+                            CwdChanged?.Invoke(path);
+                        }
+                    }
+                    break;
+
+                case "nextTab":
+                    NextTabRequested?.Invoke();
+                    break;
+                case "prevTab":
+                    PrevTabRequested?.Invoke();
                     break;
             }
         }

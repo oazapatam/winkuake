@@ -53,8 +53,12 @@
                                     Margin="0,2,1,0"
                                     CornerRadius="4,4,0,0"
                                     Tag="{Binding Index}"
+                                    AllowDrop="True"
                                     MouseLeftButtonDown="Tab_MouseDown"
-                                    MouseRightButtonDown="Tab_RightDown">
+                                    MouseRightButtonDown="Tab_RightDown"
+                                    MouseMove="Tab_MouseMove"
+                                    DragOver="Tab_DragOver"
+                                    Drop="Tab_Drop">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="{Binding IconGlyph}"
                                                FontFamily="Segoe UI Emoji"

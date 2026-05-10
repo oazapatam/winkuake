@@ -221,8 +221,33 @@
       fit.fit();
       return false;
     }
+    // Ctrl+Tab : siguiente tab (delegado al host)
+    if (ev.ctrlKey && !ev.shiftKey && ev.code === 'Tab') {
+      postToHost({ type: 'nextTab' });
+      return false;
+    }
+    // Ctrl+Shift+Tab : tab anterior
+    if (ev.ctrlKey && ev.shiftKey && ev.code === 'Tab') {
+      postToHost({ type: 'prevTab' });
+      return false;
+    }
     return true;
   });
+
+  // ---- OSC 7: el shell reporta su CWD ---------------------------------------
+  // pwsh, bash con __vte_prompt_command, zsh con chpwd hook, etc., emiten
+  // OSC 7 ; file://hostname/path BEL cuando cambian de directorio.
+  if (term.parser && term.parser.registerOscHandler) {
+    term.parser.registerOscHandler(7, data => {
+      let path = data;
+      const m = String(data).match(/^file:\/\/[^\/]*(\/.*)$/);
+      if (m) {
+        try { path = decodeURIComponent(m[1]); } catch { path = m[1]; }
+      }
+      postToHost({ type: 'cwd', path });
+      return false; // dejar que xterm también lo procese si quiere
+    });
+  }
 
   // ---- Search overlay -------------------------------------------------------
   const searchEl   = document.getElementById('search');

@@ -39,6 +39,7 @@ public partial class MainWindow : Window
         _sessions.SessionAdded   += OnSessionAdded;
         _sessions.SessionClosed  += OnSessionClosed;
         _sessions.ActiveChanged  += OnActiveChanged;
+        _sessions.OrderChanged   += OnSessionsOrderChanged;
 
         BuildProfileMenu();
     }
@@ -123,6 +124,14 @@ public partial class MainWindow : Window
         var ctrl = new TerminalControl { Visibility = Visibility.Collapsed };
         _controls[s.Id] = ctrl;
         TerminalContainer.Children.Add(ctrl);
+
+        ctrl.NextTabRequested += () => _sessions.ActivateNext();
+        ctrl.PrevTabRequested += () => _sessions.ActivatePrevious();
+        ctrl.CwdChanged += cwd =>
+        {
+            if (_sessions.Active?.Id == s.Id) UpdateStatusForActive();
+        };
+
         if (s.Profile?.CommandLine is not null)
             ctrl.StartShell(s.Profile.CommandLine, s.Profile.StartingDirectory);
 
@@ -153,11 +162,37 @@ public partial class MainWindow : Window
         foreach (var tab in Tabs)
             tab.IsActive = (tab.Index == active?.Id);
 
-        // Status bar refleja el perfil activo.
-        if (active?.Profile is { } p)
-            StatusTitle.Text = $"{ProfileIconHelper.GlyphFor(p)}  {p.DisplayName}";
-        else
+        UpdateStatusForActive();
+    }
+
+    private void UpdateStatusForActive()
+    {
+        var active = _sessions.Active;
+        if (active?.Profile is not { } p)
+        {
             StatusTitle.Text = "WinKuake";
+            return;
+        }
+        var glyph = ProfileIconHelper.GlyphFor(p);
+        var cwd = _controls.TryGetValue(active.Id, out var ctrl) ? ctrl.CurrentCwd : null;
+        StatusTitle.Text = string.IsNullOrEmpty(cwd)
+            ? $"{glyph}  {p.DisplayName}"
+            : $"{glyph}  {p.DisplayName}  ·  {AbbreviateCwd(cwd!)}";
+    }
+
+    private static string AbbreviateCwd(string cwd)
+    {
+        // Abreviar home → ~ tanto en path Windows como Linux.
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (!string.IsNullOrEmpty(home) && cwd.StartsWith(home, StringComparison.OrdinalIgnoreCase))
+            return "~" + cwd.Substring(home.Length).Replace('\\', '/');
+        // /home/user → ~ (heurística para WSL — el cwd es relativo al user de WSL).
+        var m = System.Text.RegularExpressions.Regex.Match(cwd, @"^/home/[^/]+");
+        if (m.Success && cwd.Length > m.Length && cwd[m.Length] == '/')
+            return "~" + cwd.Substring(m.Length);
+        if (m.Success && cwd.Length == m.Length)
+            return "~";
+        return cwd;
     }
 
     private void OnDeactivated(object? sender, EventArgs e)
@@ -262,11 +297,53 @@ public partial class MainWindow : Window
         if (sender is Button b && b.Tag is int id) _sessions.Close(id);
     }
 
+    private Point _tabDragStart;
+
     private void Tab_MouseDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement fe || fe.DataContext is not TabItem tab) return;
         if (e.ClickCount == 2) { PromptRename(tab); return; }
+        _tabDragStart = e.GetPosition(this);
         _sessions.SetActive(tab.Index);
+    }
+
+    private void Tab_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed) return;
+        if (sender is not FrameworkElement fe || fe.DataContext is not TabItem tab) return;
+        var p = e.GetPosition(this);
+        if (Math.Abs(p.X - _tabDragStart.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(p.Y - _tabDragStart.Y) < SystemParameters.MinimumVerticalDragDistance)
+            return;
+        DragDrop.DoDragDrop(fe, new DataObject("WinKuakeTabId", tab.Index), DragDropEffects.Move);
+    }
+
+    private void Tab_DragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent("WinKuakeTabId") ? DragDropEffects.Move : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void Tab_Drop(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent("WinKuakeTabId")) return;
+        if (sender is not FrameworkElement fe || fe.DataContext is not TabItem target) return;
+        var draggedId = (int)e.Data.GetData("WinKuakeTabId");
+        if (draggedId == target.Index) return;
+        var targetIdx = Tabs.IndexOf(target);
+        _sessions.Move(draggedId, targetIdx);
+        e.Handled = true;
+    }
+
+    private void OnSessionsOrderChanged()
+    {
+        // Sincroniza el orden visual con el orden del manager.
+        var ids = _sessions.Sessions.Select(s => s.Id).ToArray();
+        for (int target = 0; target < ids.Length; target++)
+        {
+            var current = Tabs.ToList().FindIndex(t => t.Index == ids[target]);
+            if (current >= 0 && current != target) Tabs.Move(current, target);
+        }
     }
 
     private void Tab_RightDown(object sender, MouseButtonEventArgs e)

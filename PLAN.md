@@ -84,12 +84,22 @@ Pivotamos de embeber `wt.exe` (chrome no se podía ocultar, clase de ventana cam
 - [x] Status bar refleja shell activo con ícono (cuando cambias tab, muestra "🐧 Ubuntu" o "⚡ PowerShell").
 - [x] Bridge JS `case 'config'` aplica scrollback, fontSize y theme en caliente.
 
-## Fase 5 — Próximas (sesión siguiente)
-- CWD activo en status bar (requiere OSC 7 handler en xterm).
-- Splits horizontal/vertical (Alt+Shift+- y Alt+Shift++).
-- Drag-and-drop reorder de tabs.
-- Detección de cambios en settings.json de wt sin restart.
-- Hotkey personalizado para cada tab (cycle, jump-to-N).
+## Fase 5 — Navegación y CWD  ✅
+- [x] `TerminalSessionsManager.Move(id, newIndex)` con clamp y evento `OrderChanged` (7 tests).
+- [x] `ActivateNext()` / `ActivatePrevious()` con wrap-around (3 tests).
+- [x] OSC 7 handler en xterm → `term.parser.registerOscHandler(7, …)`. Parsea `file://hostname/path`.
+- [x] `TerminalControl.CwdChanged` event + `CurrentCwd` property.
+- [x] Status bar muestra `<glyph> Perfil · ~/relative/path` con abreviación de home.
+- [x] `Ctrl+Tab` / `Ctrl+Shift+Tab` rotan entre tabs (interceptados en JS → `nextTab`/`prevTab` → manager).
+- [x] Drag-and-drop tabs: `Tab_MouseMove` arranca `DoDragDrop`, drop reordena vía `_sessions.Move()`, `OrderChanged` sincroniza la `ObservableCollection` con `Tabs.Move()`.
+
+## Fase 6 — Próximas (sesión siguiente)
+- Splits horizontal/vertical (Alt+Shift+- y Alt+Shift++). Requiere subdividir TerminalControl con un `Grid` que aloje dos WebView2 y dos ConPty.
+- Detección de cambios en `settings.json` de wt sin restart (`FileSystemWatcher`).
+- Jump-to-tab `Ctrl+Shift+1..9`.
+- Find global con `Ctrl+Shift+F` sobre TODOS los buffers activos.
+- Tab pinning + reorder con teclado (`Ctrl+Shift+PgUp/Dn`).
+- Exporte de buffer (right-click → "Save buffer as…").
 
 ---
 

@@ -43,6 +43,7 @@ public sealed class TerminalSessionsManager
     public event Action<TerminalSession>? SessionAdded;
     public event Action<TerminalSession>? SessionClosed;
     public event Action<TerminalSession?>? ActiveChanged;
+    public event Action? OrderChanged;
 
     public TerminalSession Create(TerminalProfile? profile)
     {
@@ -77,6 +78,35 @@ public sealed class TerminalSessionsManager
         if (s is null) return false;
         SetActiveInternal(s);
         return true;
+    }
+
+    public bool Move(int id, int newIndex)
+    {
+        var oldIndex = _sessions.FindIndex(s => s.Id == id);
+        if (oldIndex < 0) return false;
+        var clamped = Math.Clamp(newIndex, 0, _sessions.Count - 1);
+        if (clamped == oldIndex) return false;
+        var s = _sessions[oldIndex];
+        _sessions.RemoveAt(oldIndex);
+        _sessions.Insert(clamped, s);
+        OrderChanged?.Invoke();
+        return true;
+    }
+
+    public void ActivateNext()
+    {
+        if (_sessions.Count == 0) return;
+        var idx = _active is null ? -1 : _sessions.IndexOf(_active);
+        var next = _sessions[(idx + 1) % _sessions.Count];
+        SetActiveInternal(next);
+    }
+
+    public void ActivatePrevious()
+    {
+        if (_sessions.Count == 0) return;
+        var idx = _active is null ? 0 : _sessions.IndexOf(_active);
+        var prev = _sessions[(idx - 1 + _sessions.Count) % _sessions.Count];
+        SetActiveInternal(prev);
     }
 
     public TerminalSession Rename(int id, string label)

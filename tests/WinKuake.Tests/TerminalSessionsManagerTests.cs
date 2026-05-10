@@ -174,4 +174,116 @@ public class TerminalSessionsManagerTests
         var c = m.Create(P("c"));
         Assert.Equal(new[] { a, b, c }, m.Sessions.ToArray());
     }
+
+    // -- Move (reordenar) ---------------------------------------------------
+
+    [Fact]
+    public void Move_ChangesOrder()
+    {
+        var m = new TerminalSessionsManager();
+        var a = m.Create(P("a"));
+        var b = m.Create(P("b"));
+        var c = m.Create(P("c"));
+        // Mover 'a' (idx 0) a posición 2 → orden esperado: b, c, a.
+        Assert.True(m.Move(a.Id, 2));
+        Assert.Equal(new[] { b, c, a }, m.Sessions.ToArray());
+    }
+
+    [Fact]
+    public void Move_PreservesActive()
+    {
+        var m = new TerminalSessionsManager();
+        var a = m.Create(P("a"));
+        var b = m.Create(P("b"));
+        m.SetActive(a.Id);
+        m.Move(b.Id, 0);
+        Assert.Equal(a, m.Active);
+    }
+
+    [Fact]
+    public void Move_ClampsNewIndex()
+    {
+        var m = new TerminalSessionsManager();
+        var a = m.Create(P("a"));
+        var b = m.Create(P("b"));
+        m.Move(a.Id, 99);
+        Assert.Equal(new[] { b, a }, m.Sessions.ToArray());
+    }
+
+    [Fact]
+    public void Move_NegativeIndex_GoesToStart()
+    {
+        var m = new TerminalSessionsManager();
+        var a = m.Create(P("a"));
+        var b = m.Create(P("b"));
+        m.Move(b.Id, -5);
+        Assert.Equal(new[] { b, a }, m.Sessions.ToArray());
+    }
+
+    [Fact]
+    public void Move_NonExistent_ReturnsFalse()
+    {
+        var m = new TerminalSessionsManager();
+        m.Create(P());
+        Assert.False(m.Move(9999, 0));
+    }
+
+    [Fact]
+    public void Move_SamePosition_ReturnsFalse()
+    {
+        var m = new TerminalSessionsManager();
+        var a = m.Create(P("a"));
+        Assert.False(m.Move(a.Id, 0));
+    }
+
+    [Fact]
+    public void Move_FiresOrderChanged()
+    {
+        var m = new TerminalSessionsManager();
+        var a = m.Create(P("a"));
+        var b = m.Create(P("b"));
+        var fired = 0;
+        m.OrderChanged += () => fired++;
+        m.Move(a.Id, 1);
+        Assert.Equal(1, fired);
+    }
+
+    // -- Activate next / prev ----------------------------------------------
+
+    [Fact]
+    public void ActivateNext_CyclesToNext()
+    {
+        var m = new TerminalSessionsManager();
+        var a = m.Create(P("a"));
+        var b = m.Create(P("b"));
+        var c = m.Create(P("c"));
+        m.SetActive(a.Id);
+        m.ActivateNext();
+        Assert.Equal(b, m.Active);
+        m.ActivateNext();
+        Assert.Equal(c, m.Active);
+        m.ActivateNext();
+        // wrap around
+        Assert.Equal(a, m.Active);
+    }
+
+    [Fact]
+    public void ActivatePrevious_CyclesBack()
+    {
+        var m = new TerminalSessionsManager();
+        var a = m.Create(P("a"));
+        var b = m.Create(P("b"));
+        m.SetActive(a.Id);
+        m.ActivatePrevious();
+        // wrap a 'b'
+        Assert.Equal(b, m.Active);
+    }
+
+    [Fact]
+    public void ActivateNext_NoSessions_DoesNothing()
+    {
+        var m = new TerminalSessionsManager();
+        m.ActivateNext(); // no debe lanzar
+        Assert.Null(m.Active);
+    }
 }
