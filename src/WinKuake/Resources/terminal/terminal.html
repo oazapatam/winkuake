@@ -231,6 +231,50 @@
       postToHost({ type: 'prevTab' });
       return false;
     }
+    // Ctrl+Shift+1..9 : jump-to-tab
+    if (ev.ctrlKey && ev.shiftKey && ev.code && ev.code.startsWith('Digit')) {
+      const n = parseInt(ev.code.substring(5), 10);
+      if (n >= 1 && n <= 9) {
+        postToHost({ type: 'activateAt', index: n });
+        return false;
+      }
+    }
+    // Ctrl+Shift+PageUp / PageDown : mover tab activa una posición
+    if (ev.ctrlKey && ev.shiftKey && ev.code === 'PageUp') {
+      postToHost({ type: 'moveActiveBy', delta: -1 });
+      return false;
+    }
+    if (ev.ctrlKey && ev.shiftKey && ev.code === 'PageDown') {
+      postToHost({ type: 'moveActiveBy', delta: 1 });
+      return false;
+    }
+    // Alt+Shift+= o Alt+Shift++ : split vertical (pane al lado)
+    if (ev.altKey && ev.shiftKey && (ev.code === 'Equal' || ev.code === 'NumpadAdd')) {
+      postToHost({ type: 'splitVertical' });
+      return false;
+    }
+    // Alt+Shift+- : split horizontal (pane debajo)
+    if (ev.altKey && ev.shiftKey && (ev.code === 'Minus' || ev.code === 'NumpadSubtract')) {
+      postToHost({ type: 'splitHorizontal' });
+      return false;
+    }
+    // Ctrl+Shift+W : cerrar pane activo (si hay split; si no, host decide cerrar tab)
+    if (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyW') {
+      postToHost({ type: 'closePane' });
+      return false;
+    }
+    // Ctrl+Shift+S : guardar buffer en disco
+    if (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyS') {
+      // Capturamos todo el buffer (visible + scrollback) como texto.
+      const buf = term.buffer.active;
+      const lines = [];
+      for (let i = 0; i < buf.length; i++) {
+        const ln = buf.getLine(i);
+        if (ln) lines.push(ln.translateToString(true));
+      }
+      postToHost({ type: 'saveBuffer', text: lines.join('\n') });
+      return false;
+    }
     return true;
   });
 

@@ -1,232 +1,190 @@
 using System;
-using System.IO;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using Microsoft.Web.WebView2.Core;
 using WinKuake.Services;
 
 namespace WinKuake.Views;
 
 /// <summary>
-/// Vista de un terminal: WebView2 que carga xterm.js como renderer y se conecta
-/// a un <see cref="ConPtyService"/> que ejecuta el shell real. Bridge full-duplex
-/// vía postMessage (JS↔C#).
+/// Vista de una sesión de terminal. Hospeda 1 o 2 <see cref="TerminalPane"/>
+/// con un <see cref="GridSplitter"/> entre ellos cuando hay split.
+/// Soporta una sola subdivisión por sesión (sin recursión). Para split adicional,
+/// abre tab nueva.
 /// </summary>
 public partial class TerminalControl : UserControl
 {
-    private ConPtyService _pty = new();
-    private bool _webReady;
-    private string? _pendingCommandLine;
-    private string? _pendingStartingDir;
-    private short _lastCols = 120;
-    private short _lastRows = 30;
+    private readonly List<TerminalPane> _panes = new();
+    private TerminalPane? _activePane;
+    private string? _lastCommandLine;
+    private string? _lastStartingDir;
 
-    /// <summary>CWD actual reportado por el shell vía OSC 7. Null si nunca llegó.</summary>
-    public string? CurrentCwd { get; private set; }
+    /// <summary>Pane principal: el primero que se crea. Nunca es null tras inicializar.</summary>
+    private TerminalPane MainPane => _panes[0];
+
+    public string? CurrentCwd => _activePane?.CurrentCwd;
 
     public event Action<string>? CwdChanged;
     public event Action? NextTabRequested;
     public event Action? PrevTabRequested;
+    public event Action<int>? ActivateAtRequested;
+    public event Action<int>? MoveActiveByRequested;
+    public event Action<string>? SaveBufferRequested;
 
     public TerminalControl()
     {
         InitializeComponent();
-        Loaded += OnLoaded;
-        Unloaded += OnUnloaded;
-        _pty.OutputReceived += OnPtyOutput;
+        AddPane(orientation: null, replace: true);
     }
 
-    /// <summary>Arranca el shell indicado. Si la WebView aún no terminó de inicializar, se difiere.</summary>
     public void StartShell(string commandLine, string? startingDir = null)
     {
-        if (!_webReady) { _pendingCommandLine = commandLine; _pendingStartingDir = startingDir; return; }
-        _pty.Start(commandLine, _lastCols, _lastRows, startingDir);
+        _lastCommandLine = commandLine;
+        _lastStartingDir = startingDir;
+        MainPane.StartShell(commandLine, startingDir);
     }
 
-    /// <summary>
-    /// Cambia el shell del terminal: cierra el actual, limpia la pantalla, arranca uno nuevo.
-    /// </summary>
     public void Restart(string commandLine, string? startingDir = null)
     {
-        try { _pty.OutputReceived -= OnPtyOutput; } catch { }
-        try { _pty.Dispose(); } catch { }
-        _pty = new ConPtyService();
-        _pty.OutputReceived += OnPtyOutput;
-        // Limpiar buffer del terminal y arrancar nuevo proceso.
-        Dispatcher.InvokeAsync(() =>
-        {
-            WebView.CoreWebView2?.PostWebMessageAsJson("{\"type\":\"reset\"}");
-        });
-        if (_webReady) _pty.Start(commandLine, _lastCols, _lastRows, startingDir);
-        else { _pendingCommandLine = commandLine; _pendingStartingDir = startingDir; }
+        // Cerrar todos los splits y reiniciar el principal.
+        while (_panes.Count > 1) RemovePaneAt(_panes.Count - 1);
+        _lastCommandLine = commandLine;
+        _lastStartingDir = startingDir;
+        MainPane.Restart(commandLine, startingDir);
     }
 
-    private async void OnLoaded(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            await InitializeWebViewAsync();
-        }
-        catch (Exception ex)
-        {
-            CrashLogger.Log(ex);
-        }
-    }
-
-    private async Task InitializeWebViewAsync()
-    {
-        // UserDataFolder en %LocalAppData%\WinKuake\WebView2 para no chocar con otros usos de WebView2.
-        var userDataFolder = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "WinKuake", "WebView2");
-        Directory.CreateDirectory(userDataFolder);
-
-        var env = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder);
-        await WebView.EnsureCoreWebView2Async(env);
-
-        // Mapear nuestra carpeta de recursos como un host virtual https://winkuake.local/
-        // así xterm.js, css, etc. se cargan con una URL coherente.
-        var resourcesDir = ResolveResourcesDir();
-        WebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
-            "winkuake.local", resourcesDir, CoreWebView2HostResourceAccessKind.Allow);
-
-        WebView.CoreWebView2.WebMessageReceived += OnWebMessage;
-
-        // Deshabilitar el menú contextual default (es ruidoso); a futuro armamos uno propio.
-        WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
-        WebView.CoreWebView2.Settings.AreDevToolsEnabled = true; // útil para debug
-        WebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
-
-        WebView.CoreWebView2.Navigate("https://winkuake.local/terminal.html");
-    }
-
-    private static string ResolveResourcesDir()
-    {
-        // En dev y en single-file publish, los recursos están junto al exe
-        // bajo Resources/terminal/.
-        var baseDir = AppContext.BaseDirectory;
-        return Path.Combine(baseDir, "Resources", "terminal");
-    }
-
-    private void OnPtyOutput(ReadOnlyMemory<byte> data)
-    {
-        // El shell genera UTF-8; lo despachamos al UI thread y reenviamos a xterm.
-        var text = Encoding.UTF8.GetString(data.Span);
-        Dispatcher.InvokeAsync(() =>
-        {
-            // PostWebMessageAsString manda un string crudo; xterm.js lo escribirá.
-            WebView.CoreWebView2?.PostWebMessageAsString(text);
-        });
-    }
-
-    private void OnWebMessage(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
-    {
-        try
-        {
-            using var doc = JsonDocument.Parse(e.WebMessageAsJson);
-            var root = doc.RootElement;
-            if (!root.TryGetProperty("type", out var typeProp)) return;
-            var type = typeProp.GetString();
-
-            switch (type)
-            {
-                case "ready":
-                    _webReady = true;
-                    _lastCols = ReadShort(root, "cols", 120);
-                    _lastRows = ReadShort(root, "rows", 30);
-                    SendConfigToTerminal();
-                    if (_pendingCommandLine is not null)
-                    {
-                        var cmd = _pendingCommandLine;
-                        var dir = _pendingStartingDir;
-                        _pendingCommandLine = null;
-                        _pendingStartingDir = null;
-                        _pty.Start(cmd, _lastCols, _lastRows, dir);
-                    }
-                    break;
-
-                case "in":
-                    if (root.TryGetProperty("data", out var d))
-                        _pty.Write(d.GetString() ?? "");
-                    break;
-
-                case "resize":
-                    _lastCols = ReadShort(root, "cols", 120);
-                    _lastRows = ReadShort(root, "rows", 30);
-                    _pty.Resize(_lastCols, _lastRows);
-                    break;
-
-                case "openUrl":
-                    if (root.TryGetProperty("url", out var u))
-                    {
-                        var url = u.GetString();
-                        if (!string.IsNullOrEmpty(url))
-                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
-                    }
-                    break;
-
-                case "debug":
-                    if (root.TryGetProperty("msg", out var dm))
-                        CrashLogger.Info("[js] " + dm.GetString());
-                    break;
-
-                case "cwd":
-                    if (root.TryGetProperty("path", out var pp))
-                    {
-                        var path = pp.GetString();
-                        if (!string.IsNullOrEmpty(path))
-                        {
-                            CurrentCwd = path;
-                            CwdChanged?.Invoke(path);
-                        }
-                    }
-                    break;
-
-                case "nextTab":
-                    NextTabRequested?.Invoke();
-                    break;
-                case "prevTab":
-                    PrevTabRequested?.Invoke();
-                    break;
-            }
-        }
-        catch (Exception ex)
-        {
-            CrashLogger.Log(ex);
-        }
-    }
-
-    private static short ReadShort(JsonElement root, string name, short fallback)
-    {
-        if (root.TryGetProperty(name, out var v) && v.TryGetInt32(out var i))
-            return (short)Math.Clamp(i, 1, short.MaxValue);
-        return fallback;
-    }
-
-    /// <summary>Envía settings reconfigurables (scrollback, fuente, tema) al terminal JS.</summary>
-    private void SendConfigToTerminal()
-    {
-        var s = SettingsService.Load();
-        long scrollback = s.ScrollbackLines == -1
-            ? 9007199254740991L
-            : Math.Max(100, s.ScrollbackLines);
-        var theme = TerminalTheme.FindOrDefault(s.TerminalThemeName).ToXtermJson();
-        var fontSize = Math.Clamp(s.TerminalFontSize, 8, 40);
-        var payload = $"{{\"type\":\"config\",\"scrollback\":{scrollback},\"fontSize\":{fontSize},\"theme\":{theme}}}";
-        WebView.CoreWebView2?.PostWebMessageAsJson(payload);
-    }
-
-    /// <summary>Re-aplica los settings actuales al terminal sin reiniciar.</summary>
     public void ApplyCurrentSettings()
     {
-        if (_webReady) SendConfigToTerminal();
+        foreach (var p in _panes) p.ApplyCurrentSettings();
     }
 
-    private void OnUnloaded(object sender, RoutedEventArgs e)
+    // -- Split internals -----------------------------------------------------
+
+    /// <summary>Vertical = pane al lado (split por columna). Solo si no hay split aún.</summary>
+    public bool SplitVertical()  => Split(Orientation.Vertical);
+    /// <summary>Horizontal = pane debajo (split por fila). Solo si no hay split aún.</summary>
+    public bool SplitHorizontal() => Split(Orientation.Horizontal);
+
+    private bool Split(Orientation orientation)
     {
-        _pty.Dispose();
+        if (_panes.Count >= 2) return false; // v1: una sola subdivisión.
+        AddPane(orientation, replace: false);
+        return true;
+    }
+
+    public void CloseActivePane()
+    {
+        if (_panes.Count <= 1) return; // el pane principal nunca se cierra aquí
+        var idx = _activePane is null ? -1 : _panes.IndexOf(_activePane);
+        if (idx < 0) idx = _panes.Count - 1;
+        RemovePaneAt(idx);
+    }
+
+    private void AddPane(Orientation? orientation, bool replace)
+    {
+        var pane = new TerminalPane();
+        WireUpPane(pane);
+        _panes.Add(pane);
+
+        if (replace)
+        {
+            Root.Children.Clear();
+            Root.ColumnDefinitions.Clear();
+            Root.RowDefinitions.Clear();
+            Root.Children.Add(pane);
+        }
+        else if (orientation == Orientation.Vertical)
+        {
+            // El pane existente pasa a Column 0; nuevo pane a Column 2; splitter en Column 1.
+            Root.RowDefinitions.Clear();
+            Root.ColumnDefinitions.Clear();
+            Root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            Root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(4) });
+            Root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var existing = _panes[0];
+            Root.Children.Clear();
+            Grid.SetColumn(existing, 0);
+            Root.Children.Add(existing);
+            var splitter = new GridSplitter
+            {
+                Width = 4,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment   = VerticalAlignment.Stretch,
+                Background          = (System.Windows.Media.Brush)FindResource("ChromeBorder")
+            };
+            Grid.SetColumn(splitter, 1);
+            Root.Children.Add(splitter);
+            Grid.SetColumn(pane, 2);
+            Root.Children.Add(pane);
+        }
+        else // Horizontal
+        {
+            Root.ColumnDefinitions.Clear();
+            Root.RowDefinitions.Clear();
+            Root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            Root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(4) });
+            Root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            var existing = _panes[0];
+            Root.Children.Clear();
+            Grid.SetRow(existing, 0);
+            Root.Children.Add(existing);
+            var splitter = new GridSplitter
+            {
+                Height = 4,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment   = VerticalAlignment.Stretch,
+                Background          = (System.Windows.Media.Brush)FindResource("ChromeBorder")
+            };
+            Grid.SetRow(splitter, 1);
+            Root.Children.Add(splitter);
+            Grid.SetRow(pane, 2);
+            Root.Children.Add(pane);
+        }
+
+        if (!replace && _lastCommandLine is not null)
+            pane.StartShell(_lastCommandLine, _lastStartingDir);
+
+        SetActivePane(pane);
+    }
+
+    private void RemovePaneAt(int idx)
+    {
+        if (idx < 0 || idx >= _panes.Count) return;
+        var pane = _panes[idx];
+        _panes.RemoveAt(idx);
+        Root.Children.Clear();
+        Root.RowDefinitions.Clear();
+        Root.ColumnDefinitions.Clear();
+        if (_panes.Count > 0)
+        {
+            Root.Children.Add(_panes[0]);
+            SetActivePane(_panes[0]);
+        }
+    }
+
+    private void SetActivePane(TerminalPane pane)
+    {
+        _activePane = pane;
+        foreach (var p in _panes) p.SetActiveVisuals(p == pane);
+    }
+
+    private void WireUpPane(TerminalPane pane)
+    {
+        // El pane reemite eventos: solo forwardeamos los del pane activo
+        // (Cwd/Next/Prev) para no duplicar reacciones.
+        pane.CwdChanged += cwd =>
+        {
+            if (pane == _activePane) CwdChanged?.Invoke(cwd);
+        };
+        pane.NextTabRequested      += () => NextTabRequested?.Invoke();
+        pane.PrevTabRequested      += () => PrevTabRequested?.Invoke();
+        pane.ActivateAtRequested   += i => ActivateAtRequested?.Invoke(i);
+        pane.MoveActiveByRequested += d => MoveActiveByRequested?.Invoke(d);
+        pane.SaveBufferRequested   += t => SaveBufferRequested?.Invoke(t);
+        pane.SplitHorizontalRequested += () => SplitHorizontal();
+        pane.SplitVerticalRequested   += () => SplitVertical();
+        pane.ClosePaneRequested       += CloseActivePane;
+        pane.FocusReceived            += () => SetActivePane(pane);
     }
 }

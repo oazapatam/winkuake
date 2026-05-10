@@ -40,6 +40,7 @@ public partial class MainWindow : Window
         _sessions.SessionClosed  += OnSessionClosed;
         _sessions.ActiveChanged  += OnActiveChanged;
         _sessions.OrderChanged   += OnSessionsOrderChanged;
+        _sessions.PinChanged     += OnSessionPinChanged;
 
         BuildProfileMenu();
     }
@@ -74,6 +75,8 @@ public partial class MainWindow : Window
     /// <summary>Dev-only: dispara el flujo de mostrar desde fuera (sin esperar F12).</summary>
     public void ForceShowForDev() => ToggleVisibility();
 
+    private System.IO.FileSystemWatcher? _wtWatcher;
+
     private void OnSourceInitialized(object? sender, EventArgs e)
     {
         var hwnd = new WindowInteropHelper(this).Handle;
@@ -84,6 +87,39 @@ public partial class MainWindow : Window
 
         _animator = new WindowAnimator(this);
         UpdateLockButtonGlyph();
+        StartWatchingWtSettings();
+    }
+
+    private void StartWatchingWtSettings()
+    {
+        try
+        {
+            var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var dir = System.IO.Path.Combine(local, "Packages",
+                "Microsoft.WindowsTerminal_8wekyb3d8bbwe", "LocalState");
+            if (!System.IO.Directory.Exists(dir)) return;
+
+            _wtWatcher = new System.IO.FileSystemWatcher(dir, "settings.json")
+            {
+                NotifyFilter = System.IO.NotifyFilters.LastWrite | System.IO.NotifyFilters.Size,
+                EnableRaisingEvents = true
+            };
+            // Editores guardan en varios writes; debounce con un timer.
+            System.Threading.Timer? debounce = null;
+            _wtWatcher.Changed += (_, _) =>
+            {
+                debounce?.Dispose();
+                debounce = new System.Threading.Timer(_ =>
+                    Dispatcher.InvokeAsync(ReloadProfiles), null, 300, System.Threading.Timeout.Infinite);
+            };
+        }
+        catch (Exception ex) { CrashLogger.Log(ex); }
+    }
+
+    private void ReloadProfiles()
+    {
+        _profiles = LoadProfiles();
+        BuildProfileMenu();
     }
 
     private void ToggleVisibility()
@@ -125,8 +161,11 @@ public partial class MainWindow : Window
         _controls[s.Id] = ctrl;
         TerminalContainer.Children.Add(ctrl);
 
-        ctrl.NextTabRequested += () => _sessions.ActivateNext();
-        ctrl.PrevTabRequested += () => _sessions.ActivatePrevious();
+        ctrl.NextTabRequested      += () => _sessions.ActivateNext();
+        ctrl.PrevTabRequested      += () => _sessions.ActivatePrevious();
+        ctrl.ActivateAtRequested   += i => _sessions.ActivateAt(i);
+        ctrl.MoveActiveByRequested += d => _sessions.MoveActiveBy(d);
+        ctrl.SaveBufferRequested   += SaveBufferToFile;
         ctrl.CwdChanged += cwd =>
         {
             if (_sessions.Active?.Id == s.Id) UpdateStatusForActive();
@@ -284,17 +323,39 @@ public partial class MainWindow : Window
     }
 
     private void MenuNewTab_Click(object sender, RoutedEventArgs e) => NewTabButton_Click(sender, e);
-    private void SplitVertical_Click(object sender, RoutedEventArgs e) { /* pendiente Fase 4 */ }
-    private void SplitHorizontal_Click(object sender, RoutedEventArgs e) { /* pendiente Fase 4 */ }
+
+    private TerminalControl? ActiveControl()
+    {
+        if (_sessions.Active is { } a && _controls.TryGetValue(a.Id, out var ctrl)) return ctrl;
+        return null;
+    }
+
+    private void SplitVertical_Click(object sender, RoutedEventArgs e) => ActiveControl()?.SplitVertical();
+    private void SplitHorizontal_Click(object sender, RoutedEventArgs e) => ActiveControl()?.SplitHorizontal();
 
     private void CloseTab_Click(object sender, RoutedEventArgs e)
     {
-        if (_sessions.Active is { } a) _sessions.Close(a.Id);
+        if (_sessions.Active is { } a) TryCloseSession(a.Id);
     }
 
     private void CloseSpecificTab_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button b && b.Tag is int id) _sessions.Close(id);
+        if (sender is Button b && b.Tag is int id) TryCloseSession(id);
+    }
+
+    private void TryCloseSession(int id)
+    {
+        var s = _sessions.Sessions.FirstOrDefault(x => x.Id == id);
+        if (s is null) return;
+        if (s.IsPinned)
+        {
+            // Pestaña fijada: pedimos confirmación para evitar cierre accidental.
+            var r = MessageBox.Show(this,
+                $"La pestaña «{s.Label}» está fijada. ¿Cerrar de todos modos?",
+                "WinKuake", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (r != MessageBoxResult.Yes) return;
+        }
+        _sessions.Close(id);
     }
 
     private Point _tabDragStart;
@@ -346,10 +407,52 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnSessionPinChanged(TerminalSession s)
+    {
+        var tab = Tabs.FirstOrDefault(t => t.Index == s.Id);
+        if (tab is not null) tab.IsPinned = s.IsPinned;
+    }
+
+    private void SaveBufferToFile(string buffer)
+    {
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Guardar buffer del terminal",
+            FileName = $"winkuake-{DateTime.Now:yyyyMMdd-HHmmss}.txt",
+            DefaultExt = ".txt",
+            Filter = "Texto (*.txt)|*.txt|Todos|*.*"
+        };
+        if (dlg.ShowDialog(this) == true)
+        {
+            try
+            {
+                System.IO.File.WriteAllText(dlg.FileName, buffer, System.Text.Encoding.UTF8);
+            }
+            catch (Exception ex) { CrashLogger.Log(ex); }
+        }
+    }
+
     private void Tab_RightDown(object sender, MouseButtonEventArgs e)
     {
-        if (sender is FrameworkElement fe && fe.DataContext is TabItem tab)
-            _sessions.Close(tab.Index);
+        if (sender is not FrameworkElement fe || fe.DataContext is not TabItem tab) return;
+        var menu = new ContextMenu();
+
+        var rename = new MenuItem { Header = "Renombrar…" };
+        rename.Click += (_, _) => PromptRename(tab);
+        menu.Items.Add(rename);
+
+        var pin = new MenuItem { Header = tab.IsPinned ? "Desfijar pestaña" : "Fijar pestaña" };
+        pin.Click += (_, _) => _sessions.TogglePin(tab.Index);
+        menu.Items.Add(pin);
+
+        menu.Items.Add(new Separator());
+
+        var close = new MenuItem { Header = "Cerrar" };
+        close.Click += (_, _) => _sessions.Close(tab.Index);
+        menu.Items.Add(close);
+
+        menu.PlacementTarget = fe;
+        menu.IsOpen = true;
     }
 
     private void PromptRename(TabItem tab)
@@ -479,6 +582,15 @@ public class TabItem : INotifyPropertyChanged
         get => _isActive;
         set { if (_isActive != value) { _isActive = value; OnPropertyChanged(nameof(IsActive)); } }
     }
+
+    private bool _isPinned;
+    public bool IsPinned
+    {
+        get => _isPinned;
+        set { if (_isPinned != value) { _isPinned = value; OnPropertyChanged(nameof(IsPinned)); OnPropertyChanged(nameof(PinGlyph)); } }
+    }
+
+    public string PinGlyph => _isPinned ? "📌" : "";
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged(string name) =>

@@ -286,4 +286,111 @@ public class TerminalSessionsManagerTests
         m.ActivateNext(); // no debe lanzar
         Assert.Null(m.Active);
     }
+
+    // -- ActivateAt (jump to tab N) ----------------------------------------
+
+    [Fact]
+    public void ActivateAt_OneBased_PositionsAreActivated()
+    {
+        var m = new TerminalSessionsManager();
+        var a = m.Create(P("a"));
+        var b = m.Create(P("b"));
+        var c = m.Create(P("c"));
+        Assert.True(m.ActivateAt(1));
+        Assert.Equal(a, m.Active);
+        Assert.True(m.ActivateAt(3));
+        Assert.Equal(c, m.Active);
+    }
+
+    [Fact]
+    public void ActivateAt_OutOfRange_ReturnsFalse()
+    {
+        var m = new TerminalSessionsManager();
+        var a = m.Create(P("a"));
+        Assert.False(m.ActivateAt(0));
+        Assert.False(m.ActivateAt(99));
+        Assert.Equal(a, m.Active);
+    }
+
+    [Fact]
+    public void ActivateAt_Empty_ReturnsFalse()
+    {
+        var m = new TerminalSessionsManager();
+        Assert.False(m.ActivateAt(1));
+    }
+
+    // -- MoveActiveBy --------------------------------------------------------
+
+    [Fact]
+    public void MoveActiveBy_PositiveDelta_MovesRight()
+    {
+        var m = new TerminalSessionsManager();
+        var a = m.Create(P("a"));
+        var b = m.Create(P("b"));
+        var c = m.Create(P("c"));
+        m.SetActive(a.Id);
+        Assert.True(m.MoveActiveBy(1));
+        Assert.Equal(new[] { b, a, c }, m.Sessions.ToArray());
+    }
+
+    [Fact]
+    public void MoveActiveBy_NegativeDelta_MovesLeft()
+    {
+        var m = new TerminalSessionsManager();
+        var a = m.Create(P("a"));
+        var b = m.Create(P("b"));
+        var c = m.Create(P("c"));
+        m.SetActive(c.Id);
+        Assert.True(m.MoveActiveBy(-1));
+        Assert.Equal(new[] { a, c, b }, m.Sessions.ToArray());
+    }
+
+    [Fact]
+    public void MoveActiveBy_AtEdge_ReturnsFalse()
+    {
+        var m = new TerminalSessionsManager();
+        var a = m.Create(P("a"));
+        m.SetActive(a.Id);
+        Assert.False(m.MoveActiveBy(-1)); // ya en pos 0
+        Assert.False(m.MoveActiveBy(99)); // sería pos > count-1, clamp → mismo lugar
+    }
+
+    [Fact]
+    public void MoveActiveBy_NoActive_ReturnsFalse()
+    {
+        var m = new TerminalSessionsManager();
+        Assert.False(m.MoveActiveBy(1));
+    }
+
+    // -- Pin / Unpin / TogglePin ---------------------------------------------
+
+    [Fact]
+    public void TogglePin_FlipsPinnedState()
+    {
+        var m = new TerminalSessionsManager();
+        var s = m.Create(P("a"));
+        Assert.False(s.IsPinned);
+        Assert.True(m.TogglePin(s.Id));
+        Assert.True(s.IsPinned);
+        Assert.True(m.TogglePin(s.Id));
+        Assert.False(s.IsPinned);
+    }
+
+    [Fact]
+    public void TogglePin_NonExistent_ReturnsFalse()
+    {
+        var m = new TerminalSessionsManager();
+        Assert.False(m.TogglePin(999));
+    }
+
+    [Fact]
+    public void TogglePin_FiresPinChanged()
+    {
+        var m = new TerminalSessionsManager();
+        var s = m.Create(P("a"));
+        var fired = 0;
+        m.PinChanged += _ => fired++;
+        m.TogglePin(s.Id);
+        Assert.Equal(1, fired);
+    }
 }

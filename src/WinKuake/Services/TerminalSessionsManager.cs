@@ -14,6 +14,7 @@ public sealed class TerminalSession
     public int Id { get; }
     public TerminalProfile? Profile { get; internal set; }
     public string? CustomLabel { get; internal set; }
+    public bool IsPinned { get; internal set; }
 
     public string Label => !string.IsNullOrEmpty(CustomLabel)
         ? CustomLabel!
@@ -44,6 +45,7 @@ public sealed class TerminalSessionsManager
     public event Action<TerminalSession>? SessionClosed;
     public event Action<TerminalSession?>? ActiveChanged;
     public event Action? OrderChanged;
+    public event Action<TerminalSession>? PinChanged;
 
     public TerminalSession Create(TerminalProfile? profile)
     {
@@ -90,6 +92,31 @@ public sealed class TerminalSessionsManager
         _sessions.RemoveAt(oldIndex);
         _sessions.Insert(clamped, s);
         OrderChanged?.Invoke();
+        return true;
+    }
+
+    public bool ActivateAt(int oneBasedPosition)
+    {
+        if (oneBasedPosition < 1 || oneBasedPosition > _sessions.Count) return false;
+        var s = _sessions[oneBasedPosition - 1];
+        if (_active?.Id == s.Id) return true; // ya activa; reportamos éxito.
+        SetActiveInternal(s);
+        return true;
+    }
+
+    public bool MoveActiveBy(int delta)
+    {
+        if (_active is null) return false;
+        var idx = _sessions.IndexOf(_active);
+        return Move(_active.Id, idx + delta);
+    }
+
+    public bool TogglePin(int id)
+    {
+        var s = _sessions.FirstOrDefault(x => x.Id == id);
+        if (s is null) return false;
+        s.IsPinned = !s.IsPinned;
+        PinChanged?.Invoke(s);
         return true;
     }
 

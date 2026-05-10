@@ -93,13 +93,28 @@ Pivotamos de embeber `wt.exe` (chrome no se podía ocultar, clase de ventana cam
 - [x] `Ctrl+Tab` / `Ctrl+Shift+Tab` rotan entre tabs (interceptados en JS → `nextTab`/`prevTab` → manager).
 - [x] Drag-and-drop tabs: `Tab_MouseMove` arranca `DoDragDrop`, drop reordena vía `_sessions.Move()`, `OrderChanged` sincroniza la `ObservableCollection` con `Tabs.Move()`.
 
-## Fase 6 — Próximas (sesión siguiente)
-- Splits horizontal/vertical (Alt+Shift+- y Alt+Shift++). Requiere subdividir TerminalControl con un `Grid` que aloje dos WebView2 y dos ConPty.
-- Detección de cambios en `settings.json` de wt sin restart (`FileSystemWatcher`).
-- Jump-to-tab `Ctrl+Shift+1..9`.
+## Fase 6 — Productividad avanzada  ✅
+- [x] `Ctrl+Shift+1..9` → `_sessions.ActivateAt(n)` (jump-to-tab).
+- [x] `Ctrl+Shift+PageUp/PageDown` → `_sessions.MoveActiveBy(±1)` (mover tab con teclado).
+- [x] Tab pinning (📌): `TerminalSessionsManager.TogglePin`, evento `PinChanged`, glyph en cada tab, prompt al cerrar pinned.
+- [x] Context menu del tab (click derecho): Renombrar / Fijar / Cerrar.
+- [x] `FileSystemWatcher` sobre `settings.json` de wt → recarga perfiles en caliente con debounce 300 ms.
+- [x] `Ctrl+Shift+S` → exporta buffer completo (visible + scrollback) a archivo `.txt` con SaveFileDialog.
+- [x] **Splits**: extraído `TerminalPane` (WebView2+ConPty), `TerminalControl` ahora hospeda 1-2 panes con `GridSplitter`.
+  - `Alt+Shift+=` split vertical (pane al lado).
+  - `Alt+Shift+-` split horizontal (pane debajo).
+  - `Ctrl+Shift+W` cierra el pane activo (cuando hay split).
+  - Click en un pane lo marca activo (borde superior accent).
+  - Menú ≡ → Dividir vertical / Dividir horizontal enganchados.
+  - **Limitación v1**: una sola subdivisión por sesión (no recursivo). Para más, usar nuevas tabs.
+
+## Fase 7 — Backlog (sesión siguiente)
+- Splits recursivos (split de un pane ya split).
+- Navegación entre panes con teclado (Alt+arrows).
 - Find global con `Ctrl+Shift+F` sobre TODOS los buffers activos.
-- Tab pinning + reorder con teclado (`Ctrl+Shift+PgUp/Dn`).
-- Exporte de buffer (right-click → "Save buffer as…").
+- Resaltar links no-http (paths a archivos) clickeables.
+- Snippets / quick commands.
+- Tema custom (editor de paleta).
 
 ---
 

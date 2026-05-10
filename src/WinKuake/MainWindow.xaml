@@ -60,6 +60,11 @@
                                     DragOver="Tab_DragOver"
                                     Drop="Tab_Drop">
                                 <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding PinGlyph}"
+                                               FontFamily="Segoe UI Emoji"
+                                               FontSize="11"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,4,0" />
                                     <TextBlock Text="{Binding IconGlyph}"
                                                FontFamily="Segoe UI Emoji"
                                                FontSize="13"
