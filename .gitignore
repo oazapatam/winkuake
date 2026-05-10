@@ -1,0 +1,69 @@
+# --- .NET / Visual Studio --------------------------------------------------
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Dd]ebug/
+[Rr]elease/
+[Dd]ebugPublic/
+publish/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.dbmdl
+*.jfm
+*.tss
+*.cache
+*.tmp
+*.tmp_proj
+*.log
+*.vspscc
+*.vssscc
+.vs/
+.vshistory/
+*.vsidx
+*.lock
+TestResults/
+[Bb]uild[Ll]og.*
+[Oo]bj[Dd]/
+artifacts/
+
+# Single-file publish output
+WinKuake.exe
+WinKuake-*.exe
+
+# --- ReSharper / Rider -----------------------------------------------------
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# --- WPF / WinForms designer  ----------------------------------------------
+*.g.cs
+*.g.i.cs
+*.baml
+GeneratedInternalTypeHelper.cs
+
+# --- NuGet -----------------------------------------------------------------
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+!packages/build/
+
+# --- Inno Setup output -----------------------------------------------------
+installer/Output/
+installer/*.iss.bak
+
+# --- IDE misc --------------------------------------------------------------
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- WinKuake runtime (no commitear logs ni settings personales) -----------
+winkuake.log
+**/winkuake.log
+
+# --- Claude Code (config y locks locales) ----------------------------------
+.claude/

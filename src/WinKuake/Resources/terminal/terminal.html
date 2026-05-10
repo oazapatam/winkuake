@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="xterm.css">
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    background: #0c0c0c; overflow: hidden;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+  }
+  #term { position: absolute; inset: 0; }
+  .xterm-viewport::-webkit-scrollbar { width: 10px; }
+  .xterm-viewport::-webkit-scrollbar-track { background: transparent; }
+  .xterm-viewport::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.18); border-radius: 5px;
+  }
+  .xterm-viewport::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.3);
+  }
+
+  /* Search overlay: aparece arriba-derecha con Ctrl+Shift+F */
+  #search {
+    position: absolute; top: 8px; right: 16px;
+    background: #1f1f1f; border: 1px solid #3a3a3a; border-radius: 6px;
+    padding: 6px 8px; display: none; align-items: center; gap: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.6); z-index: 10;
+    font-size: 12px; color: #e6e6e6;
+  }
+  #search.visible { display: flex; }
+  #search input {
+    background: #0c0c0c; color: #e6e6e6;
+    border: 1px solid #3a3a3a; border-radius: 4px;
+    padding: 4px 8px; outline: none; width: 240px;
+    font-family: inherit;
+  }
+  #search input:focus { border-color: #0e7ab5; }
+  #search button {
+    background: transparent; color: #cccccc; border: none;
+    padding: 4px 6px; cursor: pointer; border-radius: 4px;
+    font-size: 13px;
+  }
+  #search button:hover { background: #2a2a2a; color: #fff; }
+  #search .count { color: #888; font-size: 11px; min-width: 50px; text-align: right; }
+</style>
+</head>
+<body>
+<div id="term"></div>
+<div id="search">
+  <input id="search-input" type="text" placeholder="Buscar…" />
+  <span class="count" id="search-count"></span>
+  <button id="search-prev" title="Anterior (Shift+Enter)">▲</button>
+  <button id="search-next" title="Siguiente (Enter)">▼</button>
+  <button id="search-close" title="Cerrar (Esc)">✕</button>
+</div>
+
+<script>
+  // Solo logueamos errores, no progreso normal.
+  function dbg(msg) {
+    if (window.chrome && window.chrome.webview)
+      window.chrome.webview.postMessage({ type: 'debug', msg: String(msg) });
+  }
+  window.addEventListener('error', e => dbg('JS error: ' + e.message + ' at ' + e.filename + ':' + e.lineno));
+</script>
+<script src="xterm.js" onerror="dbg('xterm.js FAILED to load')"></script>
+<script src="addon-fit.js" onerror="dbg('addon-fit FAILED')"></script>
+<script src="addon-web-links.js" onerror="dbg('addon-web-links FAILED')"></script>
+<script src="addon-search.js" onerror="dbg('addon-search FAILED')"></script>
+<script src="addon-unicode11.js" onerror="dbg('addon-unicode11 FAILED')"></script>
+<script src="addon-webgl.js" onerror="dbg('addon-webgl FAILED')"></script>
+<script src="addon-clipboard.js" onerror="dbg('addon-clipboard FAILED')"></script>
+<script>
+  // ---- Paleta VSCode Dark+ extendida ---------------------------------------
+  const theme = {
+    background: '#0c0c0c',
+    foreground: '#cccccc',
+    cursor: '#ffffff',
+    cursorAccent: '#0c0c0c',
+    selectionBackground: 'rgba(80, 130, 200, 0.40)',
+    selectionForeground: undefined,
+    black:   '#0c0c0c',  red:     '#c50f1f',  green:   '#13a10e',  yellow:  '#c19c00',
+    blue:    '#0037da',  magenta: '#881798',  cyan:    '#3a96dd',  white:   '#cccccc',
+    brightBlack:   '#767676', brightRed:     '#e74856',
+    brightGreen:   '#16c60c', brightYellow:  '#f9f1a5',
+    brightBlue:    '#3b78ff', brightMagenta: '#b4009e',
+    brightCyan:    '#61d6d6', brightWhite:   '#f2f2f2'
+  };
+
+  // ---- Terminal con todas las features importantes -------------------------
+  const term = new Terminal({
+    fontFamily: '"Cascadia Code", "CascadiaCode NF", Consolas, "Courier New", monospace',
+    fontSize: 14,
+    fontWeight: 400,
+    fontWeightBold: 600,
+    lineHeight: 1.15,
+    letterSpacing: 0,
+    cursorBlink: true,
+    cursorStyle: 'block',
+    cursorWidth: 2,
+    scrollback: 10000,
+    allowProposedApi: true,
+    allowTransparency: false,
+    convertEol: false,
+    drawBoldTextInBrightColors: true,
+    macOptionIsMeta: false,
+    rightClickSelectsWord: true,
+    wordSeparator: ' ()[]{},\'"`',
+    windowsMode: false,
+    theme
+  });
+
+  // Addons
+  const fit = new FitAddon.FitAddon();
+  term.loadAddon(fit);
+  term.loadAddon(new WebLinksAddon.WebLinksAddon((evt, uri) => {
+    // Click izquierdo abre; necesita postMessage para que C# llame ShellExecute si quisiéramos.
+    // Por ahora confiamos en que WebView2 abre URLs externas por defecto.
+    if (window.chrome && window.chrome.webview) {
+      window.chrome.webview.postMessage({ type: 'openUrl', url: uri });
+    }
+  }));
+  const search = new SearchAddon.SearchAddon();
+  term.loadAddon(search);
+  term.loadAddon(new Unicode11Addon.Unicode11Addon());
+  term.unicode.activeVersion = '11';
+  term.loadAddon(new ClipboardAddon.ClipboardAddon());
+
+  const termEl = document.getElementById('term');
+  term.open(termEl);
+
+  // WebGL acelerado: si falla, fallback al renderer de canvas.
+  try {
+    const webgl = new WebglAddon.WebglAddon();
+    webgl.onContextLoss(() => webgl.dispose());
+    term.loadAddon(webgl);
+  } catch (e) {
+    console.warn('WebGL renderer no disponible:', e);
+  }
+
+  // ---- Bridge con C# --------------------------------------------------------
+  function postToHost(obj) {
+    if (window.chrome && window.chrome.webview)
+      window.chrome.webview.postMessage(obj);
+  }
+
+  term.onData(data => postToHost({ type: 'in', data }));
+  term.onResize(({ cols, rows }) => postToHost({ type: 'resize', cols, rows }));
+
+  if (window.chrome && window.chrome.webview) {
+    window.chrome.webview.addEventListener('message', e => {
+      const m = e.data;
+      if (typeof m === 'string') term.write(m);
+      else if (m && m.type === 'out') term.write(m.data);
+      else if (m && m.type === 'clear') term.clear();
+      else if (m && m.type === 'reset') term.reset();
+      else if (m && m.type === 'fontSize') {
+        term.options.fontSize = m.size;
+        fit.fit();
+      }
+    });
+  }
+
+  // ---- Atajos teclado adicionales -----------------------------------------
+  // Importante: term.attachCustomKeyEventHandler nos permite interceptar antes
+  // de que xterm lo procese y devolver false para "consumir" la tecla.
+  term.attachCustomKeyEventHandler(ev => {
+    if (ev.type !== 'keydown') return true;
+
+    // Ctrl+Shift+C: copiar selección al clipboard
+    if (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyC') {
+      const sel = term.getSelection();
+      if (sel && sel.length > 0) {
+        navigator.clipboard.writeText(sel).catch(()=>{});
+        return false;
+      }
+      // sin selección: dejar pasar para que se interprete (no Ctrl+C porque shift)
+      return true;
+    }
+    // Ctrl+Shift+V: pegar
+    if (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyV') {
+      navigator.clipboard.readText().then(t => {
+        if (t) postToHost({ type: 'in', data: t });
+      }).catch(()=>{});
+      return false;
+    }
+    // Ctrl+Shift+F: abrir buscador
+    if (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyF') {
+      openSearch();
+      return false;
+    }
+    // Ctrl+L: clear screen
+    if (ev.ctrlKey && !ev.shiftKey && ev.code === 'KeyL') {
+      term.clear();
+      return false;
+    }
+    // Ctrl+= / Ctrl++ : zoom in
+    if (ev.ctrlKey && (ev.code === 'Equal' || ev.code === 'NumpadAdd')) {
+      term.options.fontSize = Math.min(40, (term.options.fontSize || 14) + 1);
+      fit.fit();
+      return false;
+    }
+    // Ctrl+- : zoom out
+    if (ev.ctrlKey && (ev.code === 'Minus' || ev.code === 'NumpadSubtract')) {
+      term.options.fontSize = Math.max(8, (term.options.fontSize || 14) - 1);
+      fit.fit();
+      return false;
+    }
+    // Ctrl+0 : reset zoom
+    if (ev.ctrlKey && (ev.code === 'Digit0' || ev.code === 'Numpad0')) {
+      term.options.fontSize = 14;
+      fit.fit();
+      return false;
+    }
+    return true;
+  });
+
+  // ---- Search overlay -------------------------------------------------------
+  const searchEl   = document.getElementById('search');
+  const searchInp  = document.getElementById('search-input');
+  const searchCnt  = document.getElementById('search-count');
+  const searchOpts = { regex: false, wholeWord: false, caseSensitive: false, decorations: {
+    matchBackground: '#5d4d00', matchBorder: '#c19c00', matchOverviewRuler: '#c19c00',
+    activeMatchBackground: '#c19c00', activeMatchBorder: '#ffffff', activeMatchColorOverviewRuler: '#ffffff'
+  }};
+
+  function openSearch() {
+    searchEl.classList.add('visible');
+    searchInp.focus();
+    searchInp.select();
+  }
+  function closeSearch() {
+    searchEl.classList.remove('visible');
+    search.clearDecorations();
+    searchCnt.textContent = '';
+    term.focus();
+  }
+  search.onDidChangeResultsCount?.(r => {
+    if (r && r.resultCount > 0) searchCnt.textContent = `${r.resultIndex + 1}/${r.resultCount}`;
+    else searchCnt.textContent = 'sin resultados';
+  });
+  searchInp.addEventListener('input', () => {
+    const q = searchInp.value;
+    if (q) search.findNext(q, searchOpts);
+    else { search.clearDecorations(); searchCnt.textContent = ''; }
+  });
+  searchInp.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape') { closeSearch(); ev.preventDefault(); }
+    else if (ev.key === 'Enter') {
+      const q = searchInp.value;
+      if (q) {
+        if (ev.shiftKey) search.findPrevious(q, searchOpts);
+        else             search.findNext(q, searchOpts);
+      }
+      ev.preventDefault();
+    }
+  });
+  document.getElementById('search-next').onclick  = () => { if (searchInp.value) search.findNext(searchInp.value, searchOpts); };
+  document.getElementById('search-prev').onclick  = () => { if (searchInp.value) search.findPrevious(searchInp.value, searchOpts); };
+  document.getElementById('search-close').onclick = closeSearch;
+
+  // ---- Resize ---------------------------------------------------------------
+  let resizeTimer;
+  function refit() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { try { fit.fit(); } catch{} }, 30);
+  }
+  window.addEventListener('resize', refit);
+  new ResizeObserver(refit).observe(termEl);
+
+  // ---- Listo ----------------------------------------------------------------
+  try { fit.fit(); } catch (e) { dbg('fit error: ' + e.message); }
+  postToHost({ type: 'ready', cols: term.cols, rows: term.rows });
+  term.focus();
+</script>
+</body>
+</html>

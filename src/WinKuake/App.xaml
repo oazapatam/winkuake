@@ -1,0 +1,64 @@
+<Application x:Class="WinKuake.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ShutdownMode="OnExplicitShutdown">
+    <Application.Resources>
+        <ResourceDictionary>
+
+            <!-- Brushes (tema oscuro tipo Yakuake). SkinService los reemplaza en
+                 caliente vía Application.Resources[<key>] = <SolidColorBrush>.
+                 Por eso el resto del XAML los referencia con DynamicResource. -->
+            <SolidColorBrush x:Key="ChromeBackground" Color="#1E1E1E" />
+            <SolidColorBrush x:Key="ChromeBorder"     Color="#3C3C3C" />
+            <SolidColorBrush x:Key="ChromeForeground" Color="#E6E6E6" />
+            <SolidColorBrush x:Key="AccentBrush"      Color="#0E7AB5" />
+            <SolidColorBrush x:Key="HoverBrush"       Color="#2D2D2D" />
+
+            <!-- Botón de chrome plano -->
+            <Style x:Key="ChromeButton" TargetType="Button">
+                <Setter Property="Background"   Value="Transparent" />
+                <Setter Property="Foreground"   Value="{DynamicResource ChromeForeground}" />
+                <Setter Property="BorderBrush"  Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding"      Value="10,4" />
+                <Setter Property="FontFamily"   Value="Segoe UI" />
+                <Setter Property="FontSize"     Value="12" />
+                <Setter Property="Cursor"       Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bd"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="3"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background"
+                                            Value="{DynamicResource HoverBrush}" />
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Bd" Property="Background"
+                                            Value="{DynamicResource AccentBrush}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="ChromeComboBox" TargetType="ComboBox">
+                <Setter Property="Background"   Value="#252526" />
+                <Setter Property="Foreground"   Value="{DynamicResource ChromeForeground}" />
+                <Setter Property="BorderBrush"  Value="{DynamicResource ChromeBorder}" />
+                <Setter Property="Padding"      Value="6,2" />
+                <Setter Property="MinWidth"     Value="160" />
+            </Style>
+
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
