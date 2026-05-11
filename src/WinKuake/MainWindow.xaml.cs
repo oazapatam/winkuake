@@ -38,6 +38,7 @@ public partial class MainWindow : Window
         SourceInitialized += OnSourceInitialized;
         Deactivated       += OnDeactivated;
         Closed            += OnClosed;
+        SizeChanged       += OnSizeChanged;
 
         _sessions.SessionAdded   += OnSessionAdded;
         _sessions.SessionClosed  += OnSessionClosed;
@@ -319,13 +320,59 @@ public partial class MainWindow : Window
 
     private void ApplyGeometry()
     {
+        // Suprimimos OnSizeChanged mientras aplicamos geometría desde settings:
+        // si no, cada ApplyGeometry dispararía un Save inútil con el mismo valor.
+        _suppressSizePersist = true;
+        try
+        {
+            var screenW = SystemParameters.PrimaryScreenWidth;
+            var screenH = SystemParameters.PrimaryScreenHeight;
+            Width  = Math.Max(400, screenW * Math.Clamp(_settings.WidthRatio,  0.1, 1.0));
+            Height = Math.Max(200, screenH * Math.Clamp(_settings.HeightRatio, 0.1, 1.0));
+            Left   = (screenW - Width) / 2.0;
+            Top    = 0;
+            Opacity = Math.Clamp(_settings.Opacity, 0.5, 1.0);
+        }
+        finally { _suppressSizePersist = false; }
+    }
+
+    /// <summary>
+    /// Capturamos el resize manual del usuario (drag de los bordes) y lo
+    /// persistimos como ratios en settings.json. Sin esto, el siguiente F12
+    /// volvía al tamaño antiguo aunque el usuario hubiera ajustado a mano.
+    /// Debounce simple: en vez de Save por cada pixel, aplazamos con un
+    /// timer que solo dispara tras 500ms sin nuevos cambios.
+    /// </summary>
+    private bool _suppressSizePersist;
+    private System.Windows.Threading.DispatcherTimer? _sizePersistTimer;
+
+    private void OnSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_suppressSizePersist) return;
+        if (Visibility != Visibility.Visible) return; // no persistir mientras está oculta
+        _sizePersistTimer ??= new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(500)
+        };
+        _sizePersistTimer.Tick -= PersistSizeTick;
+        _sizePersistTimer.Tick += PersistSizeTick;
+        _sizePersistTimer.Stop();
+        _sizePersistTimer.Start();
+    }
+
+    private void PersistSizeTick(object? sender, EventArgs e)
+    {
+        _sizePersistTimer?.Stop();
         var screenW = SystemParameters.PrimaryScreenWidth;
         var screenH = SystemParameters.PrimaryScreenHeight;
-        Width  = Math.Max(400, screenW * Math.Clamp(_settings.WidthRatio,  0.1, 1.0));
-        Height = Math.Max(200, screenH * Math.Clamp(_settings.HeightRatio, 0.1, 1.0));
-        Left   = (screenW - Width) / 2.0;
-        Top    = 0;
-        Opacity = Math.Clamp(_settings.Opacity, 0.5, 1.0);
+        var (w, h) = GeometryRatios.FromSize(ActualWidth, ActualHeight, screenW, screenH);
+        var changed = GeometryRatios.RatiosDifferEnoughToSave(_settings.WidthRatio, w)
+                   || GeometryRatios.RatiosDifferEnoughToSave(_settings.HeightRatio, h);
+        if (!changed) return;
+        _settings.WidthRatio  = w;
+        _settings.HeightRatio = h;
+        try { SettingsService.Save(_settings); }
+        catch (Exception ex) { CrashLogger.Log(ex); }
     }
 
     private double GetTargetTop() => 0;
