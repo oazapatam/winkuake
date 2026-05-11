@@ -221,7 +221,7 @@ Lanzados en worktrees aislados, archivos disjuntos. Cada agente verificó cada i
 - [x] `MainWindow.ShowTerminalContextMenu` materializa el spec a `ContextMenu` WPF, traduce client-coords del WebView2 a screen via `pane.PointToScreen()`, conecta cada `MenuItem.Click` al handler ya existente del atajo equivalente. Antes de abrir, hace `FocusPane(pane)` para que las acciones operen sobre el pane que recibió el click.
 - [x] 22 tests nuevos en `ContextMenuTests.cs` (builder puro 9 tests + regex sobre `terminal.html` 5 + regex sobre `TerminalPane.xaml.cs` 2 + theory de labels/shortcuts 8). **381/381 verdes**.
 
-## Fase 20 — Detección de terminales propia (independencia TOTAL de wt)
+## Fase 20 — Detección de terminales propia (independencia TOTAL de wt)  ✅
 
 **Motivación:** hoy WinKuake depende del `settings.json` de Windows Terminal para enumerar perfiles. Eso causa: duplicados (Ubuntu por wt + Ubuntu por detección WSL nativa), entradas "(no soportado)" no actionables (Azure Cloud Shell, perfiles wt sin commandline resoluble), y dependencia obligatoria de que el usuario tenga wt instalado y configurado.
 

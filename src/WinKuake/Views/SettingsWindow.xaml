@@ -40,6 +40,66 @@
                     Background="{DynamicResource ChromeBackground}"
                     BorderBrush="{DynamicResource ChromeBorder}">
 
+            <!-- =================== PERFILES =================== -->
+            <TabItem Header="Perfiles">
+                <Grid Margin="14">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Margin="0,0,0,8" TextWrapping="Wrap"
+                               Text="Perfiles detectados automáticamente y los que agregues a mano. Marca el por defecto con el radio. Oculta los que no uses sin borrarlos." />
+
+                    <DataGrid Grid.Row="1"
+                              x:Name="ProfilesGrid"
+                              AutoGenerateColumns="False"
+                              HeadersVisibility="Column"
+                              GridLinesVisibility="None"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              CanUserResizeRows="False"
+                              SelectionMode="Single"
+                              Background="#252526"
+                              Foreground="{DynamicResource ChromeForeground}"
+                              RowBackground="#252526"
+                              AlternatingRowBackground="#1f1f1f"
+                              BorderBrush="{DynamicResource ChromeBorder}"
+                              KeyDown="ProfilesGrid_KeyDown">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="Default" Width="60" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <RadioButton GroupName="DefaultProfileGroup"
+                                                     HorizontalAlignment="Center"
+                                                     IsChecked="{Binding IsDefault, UpdateSourceTrigger=PropertyChanged}"
+                                                     Click="DefaultRadio_Click" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridCheckBoxColumn Header="Visible" Binding="{Binding Visible, UpdateSourceTrigger=PropertyChanged}" Width="60" />
+                            <DataGridTextColumn     Header="Icono"   Binding="{Binding IconGlyph}"   Width="60" />
+                            <DataGridTextColumn     Header="Nombre"  Binding="{Binding Name}"        Width="160" />
+                            <DataGridTextColumn     Header="Commandline" Binding="{Binding CommandLine}" Width="*" />
+                            <DataGridTextColumn     Header="Cwd"     Binding="{Binding StartingDirectory}" Width="160" />
+                            <DataGridTextColumn     Header="Origen"  Binding="{Binding Source}"      Width="80" IsReadOnly="True" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="Detectar terminales" Style="{StaticResource ChromeButton}"
+                                Padding="10,4" Margin="0,0,8,0" Click="DetectTerminals_Click" />
+                        <Button Content="Añadir manual" Style="{StaticResource ChromeButton}"
+                                Padding="10,4" Margin="0,0,8,0" Click="AddManualProfile_Click" />
+                        <Button Content="Restablecer" Style="{StaticResource ChromeButton}"
+                                Padding="10,4" Margin="0,0,8,0" Click="ResetProfiles_Click" />
+                        <TextBlock Text="Tip: Delete elimina la fila seleccionada."
+                                   FontSize="11" Foreground="#9A9A9A" VerticalAlignment="Center" Margin="8,0,0,0" />
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
             <!-- =================== VENTANA =================== -->
             <TabItem Header="Ventana">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">

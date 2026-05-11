@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using WinKuake.Models;
+using WinKuake.Services.Detectors;
 
 namespace WinKuake.Services;
 
@@ -9,22 +10,68 @@ namespace WinKuake.Services;
 /// detectores nativos (Fase 20.A) con la lista persistida en
 /// <see cref="AppSettings.UserProfiles"/>. La app NO lee perfiles del
 /// settings.json de Windows Terminal — esta clase es el único origen.
-///
-/// STUB de Fase 20.0: por ahora devuelve la lista persistida tal cual
-/// (filtrando ocultos). El Agente A reemplaza esta implementación con la
-/// detección real + persistencia primera vez.
 /// </summary>
 public static class ProfileRegistry
 {
     /// <summary>
+    /// Conjunto de detectores activos. Lista pública para que tests y futuros
+    /// flujos (botón "Detectar terminales") puedan correrlos individualmente.
+    /// </summary>
+    public static IReadOnlyList<IProfileDetector> AllDetectors { get; } = new IProfileDetector[]
+    {
+        new WindowsPowerShellDetector(),
+        new PwshDetector(),
+        new CmdDetector(),
+        new WslDetector(),
+        new GitBashDetector(),
+        new VsDeveloperDetector(),
+    };
+
+    /// <summary>
     /// Devuelve los perfiles activos (no ocultos) que el usuario ve en la UI.
     /// Si <paramref name="settings"/>.<see cref="AppSettings.UserProfiles"/> está
-    /// vacío, el Agente A ejecutará los detectores y persistirá los resultados;
-    /// por ahora devolvemos la lista tal cual (vacía si nunca se inicializó).
+    /// vacío, ejecuta los detectores y los persiste en la lista (mutación
+    /// in-place). El caller (típicamente <c>MainWindow</c>) es responsable de
+    /// invocar <c>SettingsService.Save</c> después del primer <c>LoadAll</c>.
     /// </summary>
     public static IReadOnlyList<UserProfile> LoadAll(AppSettings settings)
     {
+        if (settings.UserProfiles.Count == 0)
+        {
+            var detected = RunAllDetectors();
+            settings.UserProfiles.AddRange(detected);
+        }
         return settings.UserProfiles.Where(p => !p.Hidden).ToList();
+    }
+
+    /// <summary>
+    /// Corre todos los detectores en orden y concatena sus resultados.
+    /// Cada detector ya descarta lo no resoluble en origen, así que el
+    /// resultado es directamente persistible en <see cref="AppSettings.UserProfiles"/>.
+    /// </summary>
+    public static IReadOnlyList<UserProfile> RunAllDetectors() =>
+        RunDetectors(AllDetectors);
+
+    /// <summary>
+    /// Variante testeable: corre la lista de detectores que se le pase
+    /// (típicamente fakes en unit-tests).
+    /// </summary>
+    public static IReadOnlyList<UserProfile> RunDetectors(IEnumerable<IProfileDetector> detectors)
+    {
+        var result = new List<UserProfile>();
+        foreach (var d in detectors)
+        {
+            try
+            {
+                var profiles = d.Detect();
+                if (profiles is { Count: > 0 }) result.AddRange(profiles);
+            }
+            catch
+            {
+                // Un detector roto no debe tirar al resto. Best-effort.
+            }
+        }
+        return result;
     }
 
     /// <summary>

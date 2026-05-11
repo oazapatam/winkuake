@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using WinKuake.Models;
 using WinKuake.Services;
@@ -88,6 +90,11 @@ public partial class SettingsWindow : Window
             }));
         KeybindingsGrid.ItemsSource = _keybindingsView;
 
+        // Perfiles: el grid edita una vista que envuelve cada UserProfile del
+        // clone. Las mutaciones del usuario fluyen al UserProfile original
+        // mediante el wrapper (Visible/IsDefault/Hidden).
+        BuildProfilesView();
+
         SyncBoxesFromSliders();
         UpdateSwatches();
 
@@ -110,6 +117,7 @@ public partial class SettingsWindow : Window
     private bool _suppressSync;
     private ObservableCollection<UserSnippet> _snippetsView = new();
     private ObservableCollection<KeybindingRow> _keybindingsView = new();
+    private ObservableCollection<ProfileRow> _profilesView = new();
 
     private void SyncBoxesFromSliders()
     {
@@ -246,8 +254,92 @@ public partial class SettingsWindow : Window
         }
         Result.CustomKeybindings = customs;
 
+        // Perfiles: el clone Result.UserProfiles ya está mutado por los wrappers
+        // (Visible→Hidden, IsDefault→DefaultProfileId). Solo aplicamos el
+        // DefaultProfileId y dejamos pasar la lista tal cual.
+        Result.UserProfiles = _profilesView.Select(r => r.Snapshot()).ToList();
+        Result.DefaultProfileId = _profilesView.FirstOrDefault(r => r.IsDefault)?.Id;
+
         DialogResult = true;
         Close();
+    }
+
+    // -- Tab "Perfiles" -------------------------------------------------------
+
+    private void BuildProfilesView()
+    {
+        _profilesView = new ObservableCollection<ProfileRow>(
+            Result.UserProfiles.Select(p => new ProfileRow(p, Result.DefaultProfileId)));
+        ProfilesGrid.ItemsSource = _profilesView;
+    }
+
+    private void DefaultRadio_Click(object sender, RoutedEventArgs e)
+    {
+        // Cuando el usuario marca un radio, forzamos a que solo esa fila tenga
+        // IsDefault=true. WPF ya gestiona el grupo del control, pero el binding
+        // necesita que el resto se actualice para que el commit final escriba bien.
+        if (sender is not RadioButton rb || rb.DataContext is not ProfileRow chosen) return;
+        foreach (var row in _profilesView)
+            row.IsDefault = ReferenceEquals(row, chosen);
+    }
+
+    private void DetectTerminals_Click(object sender, RoutedEventArgs e)
+    {
+        // Snapshot mutable para pasarlo a ProfileEditor.MergeDetected.
+        var existing = _profilesView.Select(r => r.Snapshot()).ToList();
+        var detected = ProfileRegistry.RunAllDetectors();
+        var added = ProfileEditor.MergeDetected(existing, detected);
+
+        if (added == 0)
+        {
+            MessageBox.Show(this,
+                "Sin cambios — ya tienes todos los detectables.",
+                "Detectar terminales", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        // Reemplazamos la vista con la lista mergeada.
+        var defaultId = _profilesView.FirstOrDefault(r => r.IsDefault)?.Id;
+        _profilesView = new ObservableCollection<ProfileRow>(
+            existing.Select(p => new ProfileRow(p, defaultId)));
+        ProfilesGrid.ItemsSource = _profilesView;
+
+        MessageBox.Show(this,
+            $"Se detectaron {added} nuevos perfiles.",
+            "Detectar terminales", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private void AddManualProfile_Click(object sender, RoutedEventArgs e)
+    {
+        var blank = ProfileEditor.CreateBlankCustom();
+        var row = new ProfileRow(blank, defaultId: null) { Visible = true };
+        _profilesView.Add(row);
+        ProfilesGrid.SelectedItem = row;
+        ProfilesGrid.ScrollIntoView(row);
+    }
+
+    private void ResetProfiles_Click(object sender, RoutedEventArgs e)
+    {
+        var ok = MessageBox.Show(this,
+            "Esto borrará TODOS los perfiles guardados (detectados y manuales) y el default.\n\n" +
+            "Podrás repoblar la lista con \"Detectar terminales\" después. ¿Continuar?",
+            "Restablecer perfiles", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+        if (ok != MessageBoxResult.OK) return;
+
+        _profilesView.Clear();
+    }
+
+    private void ProfilesGrid_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Delete) return;
+        if (ProfilesGrid.SelectedItem is not ProfileRow row) return;
+
+        // Si el origen del KeyDown es un TextBox (modo edición de celda), no
+        // interceptamos: dejamos que Delete borre texto dentro del campo.
+        if (e.OriginalSource is TextBox) return;
+
+        _profilesView.Remove(row);
+        e.Handled = true;
     }
 
     private void UpdateCustomThemeVisibility()
@@ -386,4 +478,64 @@ public class KeybindingRow
     public string DisplayName { get; set; } = "";
     public string Gesture { get; set; } = "";
     public string DefaultGesture { get; set; } = "";
+}
+
+/// <summary>
+/// Wrapper editable sobre <see cref="UserProfile"/> para el DataGrid de la tab
+/// "Perfiles". Expone <c>Visible</c> (= !Hidden) y <c>IsDefault</c> (booleano
+/// derivado del DefaultProfileId). Implementa INotifyPropertyChanged para que
+/// el grupo de RadioButtons reaccione al click.
+/// </summary>
+public class ProfileRow : INotifyPropertyChanged
+{
+    public string Id { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string CommandLine { get; set; } = "";
+    public string? StartingDirectory { get; set; }
+    public string? IconGlyph { get; set; }
+    public string Source { get; set; } = "Custom";
+
+    private bool _visible = true;
+    public bool Visible
+    {
+        get => _visible;
+        set { if (_visible != value) { _visible = value; OnChanged(nameof(Visible)); } }
+    }
+
+    private bool _isDefault;
+    public bool IsDefault
+    {
+        get => _isDefault;
+        set { if (_isDefault != value) { _isDefault = value; OnChanged(nameof(IsDefault)); } }
+    }
+
+    public ProfileRow() { }
+
+    public ProfileRow(UserProfile p, string? defaultId)
+    {
+        Id                = p.Id;
+        Name              = p.Name;
+        CommandLine       = p.CommandLine;
+        StartingDirectory = p.StartingDirectory;
+        IconGlyph         = p.IconGlyph;
+        Source            = p.Source;
+        Visible           = !p.Hidden;
+        IsDefault         = !string.IsNullOrEmpty(defaultId)
+                            && string.Equals(defaultId, p.Id, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Vuelca al modelo persistible.</summary>
+    public UserProfile Snapshot() => new()
+    {
+        Id                = string.IsNullOrEmpty(Id) ? Guid.NewGuid().ToString() : Id,
+        Name              = Name ?? "",
+        CommandLine       = CommandLine ?? "",
+        StartingDirectory = string.IsNullOrWhiteSpace(StartingDirectory) ? null : StartingDirectory,
+        IconGlyph         = string.IsNullOrWhiteSpace(IconGlyph) ? null : IconGlyph,
+        Source            = string.IsNullOrEmpty(Source) ? "Custom" : Source,
+        Hidden            = !Visible,
+    };
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void OnChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

@@ -21,7 +21,7 @@ public partial class MainWindow : Window
     private readonly Dictionary<int, TerminalControl> _controls = new();
     private WindowAnimator? _animator;
     private bool _firstShown;
-    private TerminalProfile[] _profiles = LoadProfiles();
+    private TerminalProfile[] _profiles = System.Array.Empty<TerminalProfile>();
 
     /// <summary>Pestañas mostradas en la tab bar inferior. ViewModel del manager.</summary>
     public ObservableCollection<TabItem> Tabs { get; } = new();
@@ -45,25 +45,21 @@ public partial class MainWindow : Window
         _sessions.OrderChanged   += OnSessionsOrderChanged;
         _sessions.PinChanged     += OnSessionPinChanged;
 
-        BuildProfileMenu();
+        ReloadProfiles();
         BuildWorkspacesMenu();
     }
 
-    private static TerminalProfile[] LoadProfiles()
+    private void LoadProfilesFromRegistry()
     {
-        // LoadCombined = perfiles wt + distros WSL detectadas que falten.
-        var combined = WtProfileSource.LoadCombined();
-        if (combined.Count > 0)
+        // Snapshot de UserProfiles antes de pedir LoadAll: si está vacío, los
+        // detectores poblarán _settings.UserProfiles y persistimos el resultado.
+        var hadProfiles = _settings.UserProfiles.Count > 0;
+        var users = ProfileRegistry.LoadAll(_settings);
+        if (!hadProfiles && _settings.UserProfiles.Count > 0)
         {
-            return new[] { new TerminalProfile("(predeterminado)", "") }
-                .Concat(combined).ToArray();
+            SettingsService.Save(_settings);
         }
-        return new[]
-        {
-            new TerminalProfile("(predeterminado)", "") { CommandLine = "powershell.exe" },
-            new TerminalProfile("PowerShell",       "pwsh") { CommandLine = "pwsh.exe" },
-            new TerminalProfile("cmd",              "cmd")  { CommandLine = "cmd.exe" },
-        };
+        _profiles = ProfileMapping.BuildTerminalProfiles(users, _settings.DefaultProfileId);
     }
 
     public void InitializeHidden()
@@ -79,7 +75,6 @@ public partial class MainWindow : Window
     /// <summary>Dev-only: dispara el flujo de mostrar desde fuera (sin esperar F12).</summary>
     public void ForceShowForDev() => ToggleVisibility();
 
-    private System.IO.FileSystemWatcher? _wtWatcher;
     private TrayIconService? _tray;
 
     private void OnSourceInitialized(object? sender, EventArgs e)
@@ -92,7 +87,6 @@ public partial class MainWindow : Window
 
         _animator = new WindowAnimator(this);
         UpdateLockButtonGlyph();
-        StartWatchingWtSettings();
         InstallTrayIcon();
     }
 
@@ -109,35 +103,9 @@ public partial class MainWindow : Window
         _tray.Install();
     }
 
-    private void StartWatchingWtSettings()
-    {
-        try
-        {
-            var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var dir = System.IO.Path.Combine(local, "Packages",
-                "Microsoft.WindowsTerminal_8wekyb3d8bbwe", "LocalState");
-            if (!System.IO.Directory.Exists(dir)) return;
-
-            _wtWatcher = new System.IO.FileSystemWatcher(dir, "settings.json")
-            {
-                NotifyFilter = System.IO.NotifyFilters.LastWrite | System.IO.NotifyFilters.Size,
-                EnableRaisingEvents = true
-            };
-            // Editores guardan en varios writes; debounce con un timer.
-            System.Threading.Timer? debounce = null;
-            _wtWatcher.Changed += (_, _) =>
-            {
-                debounce?.Dispose();
-                debounce = new System.Threading.Timer(_ =>
-                    Dispatcher.InvokeAsync(ReloadProfiles), null, 300, System.Threading.Timeout.Infinite);
-            };
-        }
-        catch (Exception ex) { CrashLogger.Log(ex); }
-    }
-
     private void ReloadProfiles()
     {
-        _profiles = LoadProfiles();
+        LoadProfilesFromRegistry();
         BuildProfileMenu();
     }
 
@@ -166,9 +134,12 @@ public partial class MainWindow : Window
 
     private TerminalProfile DefaultProfile()
     {
-        return _profiles.FirstOrDefault(p => p.IsDefault && p.CommandLine is not null)
-            ?? _profiles.FirstOrDefault(p => p.CommandLine is not null)
-            ?? new TerminalProfile("PowerShell", "pwsh") { CommandLine = "powershell.exe" };
+        // El default ya viene marcado en _profiles (BuildTerminalProfiles usa
+        // ResolveDefault con _settings.DefaultProfileId). Si por alguna razón
+        // no hay perfiles, fallback duro a PowerShell para no crashear.
+        return _profiles.FirstOrDefault(p => p.IsDefault && !string.IsNullOrEmpty(p.CommandLine))
+            ?? _profiles.FirstOrDefault(p => !string.IsNullOrEmpty(p.CommandLine))
+            ?? ProfileMapping.HardFallback();
     }
 
     private void RestoreSessionOrCreateDefault()
@@ -210,12 +181,8 @@ public partial class MainWindow : Window
 
     private TerminalProfile ResolvePersistedProfile(PersistedTab t)
     {
-        TerminalProfile? p = null;
-        if (!string.IsNullOrEmpty(t.ProfileGuid))
-            p = _profiles.FirstOrDefault(x => string.Equals(x.Guid, t.ProfileGuid, StringComparison.OrdinalIgnoreCase));
-        if (p is null && !string.IsNullOrEmpty(t.ProfileName))
-            p = _profiles.FirstOrDefault(x => string.Equals(x.DisplayName, t.ProfileName, StringComparison.OrdinalIgnoreCase));
-        return p ?? DefaultProfile();
+        return ProfileMapping.ResolvePersisted(_profiles, t.ProfileGuid, t.ProfileName)
+            ?? DefaultProfile();
     }
 
     private List<PersistedTab> SnapshotCurrentSessions()
@@ -282,12 +249,8 @@ public partial class MainWindow : Window
 
     private TerminalProfile ResolvePersistedProfileFromGuidOrName(string? guid, string? name)
     {
-        TerminalProfile? p = null;
-        if (!string.IsNullOrEmpty(guid))
-            p = _profiles.FirstOrDefault(x => string.Equals(x.Guid, guid, StringComparison.OrdinalIgnoreCase));
-        if (p is null && !string.IsNullOrEmpty(name))
-            p = _profiles.FirstOrDefault(x => string.Equals(x.DisplayName, name, StringComparison.OrdinalIgnoreCase));
-        return p ?? DefaultProfile();
+        return ProfileMapping.ResolvePersisted(_profiles, guid, name)
+            ?? DefaultProfile();
     }
 
     private void OnSessionClosed(TerminalSession s)
@@ -381,11 +344,12 @@ public partial class MainWindow : Window
         var shortcutIndex = 1;
         foreach (var p in _profiles)
         {
-            if (string.IsNullOrEmpty(p.WtArgs)) continue;
-            var supported = p.CommandLine is not null;
+            // Los detectores garantizan que CommandLine está poblado; si por
+            // alguna razón faltara, el perfil no se muestra.
+            if (string.IsNullOrEmpty(p.CommandLine)) continue;
             var item = new MenuItem
             {
-                Header = p.DisplayName + (supported ? "" : "  (no soportado)"),
+                Header = p.DisplayName,
                 Tag = p,
                 Icon = new TextBlock
                 {
@@ -395,13 +359,9 @@ public partial class MainWindow : Window
                 },
                 InputGestureText = shortcutIndex <= 9 ? $"Ctrl+Shift+{shortcutIndex}" : "",
                 FontWeight = p.IsDefault ? FontWeights.Bold : FontWeights.Normal,
-                IsEnabled = supported
             };
-            if (supported)
-            {
-                var profileCapture = p;
-                item.Click += (_, _) => _sessions.Create(profileCapture);
-            }
+            var profileCapture = p;
+            item.Click += (_, _) => _sessions.Create(profileCapture);
             ProfileMenu.Items.Add(item);
             shortcutIndex++;
         }
@@ -850,6 +810,10 @@ public partial class MainWindow : Window
             // Aplicar tema/scrollback/fontSize en caliente a todas las sesiones.
             foreach (var ctrl in _controls.Values)
                 ctrl.ApplyCurrentSettings();
+
+            // Si el usuario editó perfiles en Configuración, refrescamos el menú.
+            ReloadProfiles();
+            BuildWorkspacesMenu();
         }
     }
 

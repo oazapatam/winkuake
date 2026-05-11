@@ -25,6 +25,7 @@ global using ComboBox = System.Windows.Controls.ComboBox;
 global using ListBox = System.Windows.Controls.ListBox;
 global using ListBoxItem = System.Windows.Controls.ListBoxItem;
 global using CheckBox = System.Windows.Controls.CheckBox;
+global using RadioButton = System.Windows.Controls.RadioButton;
 global using GroupBox = System.Windows.Controls.GroupBox;
 global using Panel = System.Windows.Controls.Panel;
 global using Separator = System.Windows.Controls.Separator;

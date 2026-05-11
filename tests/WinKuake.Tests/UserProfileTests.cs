@@ -103,10 +103,15 @@ public class UserProfileTests
     // ---- ProfileRegistry stub ---------------------------------------------
 
     [Fact]
-    public void Registry_LoadAll_ListaVaciaCuandoSettingsVacio()
+    public void Registry_LoadAll_SettingsVacio_PoblaConDetectores()
     {
+        // Fase 20.A: cuando UserProfiles está vacío, LoadAll dispara los
+        // detectores nativos y persiste el resultado en la lista. En Windows
+        // siempre habrá al menos powershell.exe + cmd.exe.
         var s = new AppSettings();
-        Assert.Empty(ProfileRegistry.LoadAll(s));
+        var result = ProfileRegistry.LoadAll(s);
+        Assert.NotEmpty(s.UserProfiles);
+        Assert.Equal(s.UserProfiles.Count(p => !p.Hidden), result.Count);
     }
 
     [Fact]
