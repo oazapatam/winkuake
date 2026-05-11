@@ -169,7 +169,7 @@
                             Click="MenuButton_Click">
                         <Button.ContextMenu>
                             <ContextMenu x:Name="HamburgerMenu">
-                                <MenuItem Header="Configurar Yakuake…  (Ctrl+Shift+,)" Click="OpenSettings_Click" />
+                                <MenuItem Header="Configurar WinKuake…  (Ctrl+Shift+,)" Click="OpenSettings_Click" />
                                 <Separator />
                                 <MenuItem Header="Nueva pestaña       (Ctrl+Shift+T)" Click="MenuNewTab_Click" />
                                 <MenuItem Header="Dividir vertical    (Alt+Shift++)"  Click="SplitVertical_Click" />

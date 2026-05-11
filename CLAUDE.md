@@ -73,6 +73,21 @@ Para esos casos: documentar el resultado esperado en el PR/respuesta y, si la re
 
 ---
 
+## Desarrollo en paralelo con agentes (regla del proyecto)
+
+**Cuando hay features independientes pendientes, paralelízalas con sub-agentes en worktrees aislados** (`isolation: "worktree"` en el Agent tool). Reglas:
+
+1. **Agrupa features con archivos disjuntos** en cada agente. Si dos features tocan el mismo archivo, secuencia o asigna ambas al mismo agente.
+2. **Prompt explícito** por agente: qué crear, qué modificar, **qué NO tocar**, restricciones (TDD, build limpio, comentarios en español).
+3. **Lanza todos en un mismo turno** (`Agent` tool con `run_in_background: true`) para que corran a la vez.
+4. **Mientras corren**, trabaja en master en algo NO conflictivo (típicamente la feature más invasiva o documentación).
+5. **Al terminar**, los archivos del worktree quedan sin commitear; cópialos a master con `cp` y resuelve manualmente los conflictos de archivos que más de un agente toca. Build + `dotnet test` antes del commit final.
+6. **Un solo commit** describiendo qué hizo cada agente, no uno por agente — más fácil de leer en `git log`.
+
+Cuando un cambio NO se beneficia de paralelismo (rápido / muy acoplado a una sola zona), hazlo secuencial. El paralelismo es una herramienta, no un fin.
+
+---
+
 La verificación visual / integración manual va abajo en "Validación manual".
 
 ## Validación manual antes de marcar tarea completada
