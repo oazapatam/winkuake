@@ -49,6 +49,53 @@ public partial class TerminalPane : UserControl
     public event Action? OpenGlobalFindRequested;
     public event Action<string>? InputReceived;
 
+    /// <summary>
+    /// Click derecho sobre el terminal. Coordenadas en píxeles de cliente del
+    /// WebView2 (las traduce el host a coords de pantalla para posicionar el menú).
+    /// </summary>
+    public event Action<double, double, bool>? ContextMenuRequested;
+
+    /// <summary>Abre el overlay de búsqueda (equivalente a Ctrl+Shift+F).</summary>
+    public void OpenSearch()
+    {
+        if (WebView.CoreWebView2 is null) return;
+        try { WebView.CoreWebView2.ExecuteScriptAsync("openSearch()"); }
+        catch (Exception ex) { CrashLogger.Log(ex); }
+    }
+
+    /// <summary>Limpia el buffer (equivalente a Ctrl+L). Usado por el menú contextual.</summary>
+    public void ClearBuffer()
+    {
+        if (WebView.CoreWebView2 is null) return;
+        try { WebView.CoreWebView2.ExecuteScriptAsync("term.clear()"); }
+        catch (Exception ex) { CrashLogger.Log(ex); }
+    }
+
+    /// <summary>Pega el contenido del clipboard (equivalente a Ctrl+Shift+V).</summary>
+    public void PasteFromClipboard()
+    {
+        if (WebView.CoreWebView2 is null) return;
+        try
+        {
+            // Reusamos navigator.clipboard.readText() y term.paste() del JS para
+            // que aplique bracketed paste igual que el atajo de teclado.
+            const string js =
+                "navigator.clipboard.readText()" +
+                ".then(t => { if (t) term.paste(t); }).catch(()=>{})";
+            WebView.CoreWebView2.ExecuteScriptAsync(js);
+        }
+        catch (Exception ex) { CrashLogger.Log(ex); }
+    }
+
+    /// <summary>Copia la selección actual al clipboard.</summary>
+    public async void CopySelectionToClipboard()
+    {
+        var sel = await GetSelectionAsync();
+        if (string.IsNullOrEmpty(sel)) return;
+        try { System.Windows.Clipboard.SetText(sel); }
+        catch (Exception ex) { CrashLogger.Log(ex); }
+    }
+
     /// <summary>Escribe texto directamente al PTY (uso: paleta de comandos).</summary>
     public void InjectInput(string text) => _pty.Write(text);
 
@@ -323,6 +370,15 @@ public partial class TerminalPane : UserControl
                 case "openGlobalFind":
                     OpenGlobalFindRequested?.Invoke();
                     break;
+                case "contextMenu":
+                {
+                    double x = ReadDouble(root, "x", 0);
+                    double y = ReadDouble(root, "y", 0);
+                    bool hasSel = root.TryGetProperty("hasSelection", out var hs)
+                                  && hs.ValueKind == JsonValueKind.True;
+                    ContextMenuRequested?.Invoke(x, y, hasSel);
+                    break;
+                }
             }
         }
         catch (Exception ex) { CrashLogger.Log(ex); }
@@ -332,6 +388,13 @@ public partial class TerminalPane : UserControl
     {
         if (root.TryGetProperty(name, out var v) && v.TryGetInt32(out var i))
             return (short)Math.Clamp(i, 1, short.MaxValue);
+        return fallback;
+    }
+
+    private static double ReadDouble(JsonElement root, string name, double fallback)
+    {
+        if (root.TryGetProperty(name, out var v) && v.TryGetDouble(out var d))
+            return d;
         return fallback;
     }
 

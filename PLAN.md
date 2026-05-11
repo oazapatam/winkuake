@@ -212,7 +212,16 @@ Lanzados en worktrees aislados, archivos disjuntos. Cada agente verificó cada i
 
 **Total post-merge: 359 tests verdes** (217 previos + 142 nuevos). Build limpio. Ningún `.cs` de `src/` modificado por los agentes — el plan estaba completo y correcto, sólo faltaba cobertura de tests defensivos.
 
-## Fase 18 — Backlog
+## Fase 19 — Menú contextual del terminal (click derecho)  ✅
+- [x] Listener `contextmenu` en `terminal.html` con `preventDefault()` que postea `{type:'contextMenu', x, y, hasSelection}` al host.
+- [x] `TerminalPane.ContextMenuRequested` event + case `"contextMenu"` en `OnWebMessage`. `ReadDouble` helper para coords.
+- [x] `TerminalPane.OpenSearch()`, `ClearBuffer()`, `PasteFromClipboard()`, `CopySelectionToClipboard()` para que cada item del menú reuse la misma ruta que el atajo de teclado.
+- [x] `TerminalControl.ContextMenuRequested` propaga el evento con el pane que recibió el click.
+- [x] `TerminalContextMenuBuilder.Build(hasSelection, isInSplit)` — función pura que retorna `IReadOnlyList<ContextMenuItemSpec>` con label, shortcut, enabled. Items: Copiar (gris si !hasSelection), Pegar, Buscar, ─, Dividir vert/horiz, Cerrar pane (gris si !isInSplit), ─, Paleta, Limpiar.
+- [x] `MainWindow.ShowTerminalContextMenu` materializa el spec a `ContextMenu` WPF, traduce client-coords del WebView2 a screen via `pane.PointToScreen()`, conecta cada `MenuItem.Click` al handler ya existente del atajo equivalente. Antes de abrir, hace `FocusPane(pane)` para que las acciones operen sobre el pane que recibió el click.
+- [x] 22 tests nuevos en `ContextMenuTests.cs` (builder puro 9 tests + regex sobre `terminal.html` 5 + regex sobre `TerminalPane.xaml.cs` 2 + theory de labels/shortcuts 8). **381/381 verdes**.
+
+## Fase 20 — Backlog
 - Sincronizar settings vía GitHub Gist.
 - Soporte de SSH/PuTTY integrado (perfil con `ssh user@host`).
 - Animación entre cambios de tab.

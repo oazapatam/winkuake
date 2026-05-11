@@ -40,6 +40,12 @@ public partial class TerminalControl : UserControl
     public event Action? OpenGlobalFindRequested;
     public event Action<bool>? BroadcastChanged;
 
+    /// <summary>
+    /// Click derecho sobre algún pane. Args: pane que recibió el click,
+    /// coords cliente del WebView2 dentro del pane, y si hay selección.
+    /// </summary>
+    public event Action<TerminalPane, double, double, bool>? ContextMenuRequested;
+
     /// <summary>Todos los panes del control (vivos), en orden de creación.</summary>
     public IReadOnlyList<TerminalPane> AllPanes => _panes;
 
@@ -256,6 +262,8 @@ public partial class TerminalControl : UserControl
         pane.OpenPaletteRequested     += () => OpenPaletteRequested?.Invoke();
         pane.ToggleBroadcastRequested += ToggleBroadcast;
         pane.OpenGlobalFindRequested  += () => OpenGlobalFindRequested?.Invoke();
+        pane.ContextMenuRequested     += (x, y, hasSel) =>
+            ContextMenuRequested?.Invoke(pane, x, y, hasSel);
         pane.InputReceived += text =>
         {
             if (!BroadcastEnabled) return;

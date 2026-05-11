@@ -365,6 +365,23 @@
     });
   }
 
+  // ---- Menú contextual (click derecho) --------------------------------------
+  // Bloqueamos el menú nativo del WebView2 y delegamos al host: WPF abre un
+  // ContextMenu propio con copy/paste/find/split/close/palette/clear. Mandamos
+  // las coordenadas del cliente y si hay selección para deshabilitar "Copiar"
+  // cuando no aplique.
+  document.addEventListener('contextmenu', ev => {
+    ev.preventDefault();
+    const sel = term.getSelection();
+    postToHost({
+      type: 'contextMenu',
+      x: ev.clientX,
+      y: ev.clientY,
+      hasSelection: !!(sel && sel.length > 0)
+    });
+    return false;
+  });
+
   // ---- Search overlay -------------------------------------------------------
   const searchEl   = document.getElementById('search');
   const searchInp  = document.getElementById('search-input');

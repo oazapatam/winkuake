@@ -251,6 +251,8 @@ public partial class MainWindow : Window
         ctrl.OpenFileRequested     += path => OpenFileFromTerminal(ctrl, path);
         ctrl.OpenPaletteRequested  += () => OpenCommandPalette(ctrl);
         ctrl.OpenGlobalFindRequested += () => _ = OpenGlobalFindAsync();
+        ctrl.ContextMenuRequested  += (pane, x, y, hasSel) =>
+            ShowTerminalContextMenu(ctrl, pane, x, y, hasSel);
         ctrl.BroadcastChanged      += _ =>
         {
             if (_sessions.Active?.Id == s.Id) UpdateStatusForActive();
@@ -449,6 +451,65 @@ public partial class MainWindow : Window
     {
         var ctrl = ActiveControl();
         if (ctrl is not null) OpenCommandPalette(ctrl);
+    }
+
+    /// <summary>
+    /// Materializa el menú contextual del terminal. La lista de items la
+    /// construye <see cref="WinKuake.Services.TerminalContextMenuBuilder"/>; aquí
+    /// los conectamos a los handlers ya existentes (los mismos que usan los
+    /// atajos de teclado) y posicionamos el menú en pantalla.
+    /// </summary>
+    private void ShowTerminalContextMenu(
+        TerminalControl ctrl, TerminalPane pane, double clientX, double clientY, bool hasSelection)
+    {
+        // El click derecho debe activar el pane antes de operar (las acciones
+        // posteriores miran el pane activo del control).
+        ctrl.FocusPane(pane);
+
+        var isInSplit = ctrl.AllPanes.Count > 1;
+        var specs = WinKuake.Services.TerminalContextMenuBuilder.Build(hasSelection, isInSplit);
+
+        var menu = new ContextMenu();
+        foreach (var spec in specs)
+        {
+            if (spec.IsSeparator) { menu.Items.Add(new Separator()); continue; }
+            var mi = new MenuItem
+            {
+                Header = spec.Label,
+                InputGestureText = spec.Shortcut,
+                IsEnabled = spec.Enabled,
+            };
+            var actionId = spec.ActionId;
+            mi.Click += (_, _) => OnContextMenuAction(ctrl, pane, actionId);
+            menu.Items.Add(mi);
+        }
+
+        // Posicionar en coords de pantalla traduciendo desde client del WebView2.
+        try
+        {
+            var screen = pane.PointToScreen(new Point(clientX, clientY));
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.AbsolutePoint;
+            menu.HorizontalOffset = screen.X;
+            menu.VerticalOffset   = screen.Y;
+            menu.PlacementTarget  = pane;
+        }
+        catch { /* fallback: aparece en posición default si PointToScreen falla */ }
+        menu.IsOpen = true;
+    }
+
+    private void OnContextMenuAction(TerminalControl ctrl, TerminalPane pane, string actionId)
+    {
+        switch (actionId)
+        {
+            case "copy":            pane.CopySelectionToClipboard();   break;
+            case "paste":           pane.PasteFromClipboard();         break;
+            case "find":            pane.OpenSearch();                 break;
+            case "splitVertical":   ctrl.SplitVertical();              break;
+            case "splitHorizontal": ctrl.SplitHorizontal();            break;
+            case "closePane":       ctrl.CloseActivePane();            break;
+            case "openPalette":     OpenCommandPalette(ctrl);          break;
+            case "clearBuffer":     pane.ClearBuffer();                break;
+        }
     }
 
     private void CloseTab_Click(object sender, RoutedEventArgs e)
