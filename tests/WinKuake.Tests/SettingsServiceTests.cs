@@ -46,7 +46,8 @@ public class SettingsServiceTests : IDisposable
     {
         var loaded = SettingsService.Load();
         Assert.Equal("F12", loaded.HotkeyKey);
-        Assert.Equal(0.5, loaded.HeightRatio);
+        Assert.Equal(0.7, loaded.HeightRatio);
+        Assert.Equal(0.9, loaded.WidthRatio);
     }
 
     [Fact]

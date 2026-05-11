@@ -102,6 +102,13 @@ public partial class MainWindow : Window
         _tray.SettingsRequested += () => Dispatcher.InvokeAsync(() => OpenSettings_Click(this, new RoutedEventArgs()));
         _tray.ExitRequested     += () => Dispatcher.InvokeAsync(() => Application.Current.Shutdown());
         _tray.Install();
+
+        // Saludo inicial: confirma al usuario que la app está viva y le
+        // recuerda el hotkey actual (útil cuando arranca en background y
+        // no aparece ninguna ventana).
+        _tray.ShowBalloon(
+            "WinKuake is running",
+            $"Press {HotkeyDisplay()} to toggle the terminal. Right-click the tray icon for more options.");
     }
 
     private void ReloadProfiles()
@@ -221,9 +228,13 @@ public partial class MainWindow : Window
         ctrl.OpenGlobalFindRequested += () => _ = OpenGlobalFindAsync();
         ctrl.ContextMenuRequested  += (pane, x, y, hasSel) =>
             ShowTerminalContextMenu(ctrl, pane, x, y, hasSel);
-        ctrl.BroadcastChanged      += _ =>
+        ctrl.BroadcastChanged      += active =>
         {
-            if (_sessions.Active?.Id == s.Id) UpdateStatusForActive();
+            if (_sessions.Active?.Id == s.Id)
+            {
+                UpdateStatusForActive();
+                _tray?.SetBroadcastState(active);
+            }
         };
         ctrl.CwdChanged += cwd =>
         {
@@ -279,6 +290,12 @@ public partial class MainWindow : Window
             tab.IsActive = (tab.Index == active?.Id);
 
         UpdateStatusForActive();
+
+        // Sincroniza el badge del tray con el broadcast state de la nueva tab activa.
+        if (active is not null && _controls.TryGetValue(active.Id, out var ctrl))
+            _tray?.SetBroadcastState(ctrl.BroadcastEnabled);
+        else
+            _tray?.SetBroadcastState(false);
     }
 
     private void UpdateStatusForActive()
@@ -349,7 +366,9 @@ public partial class MainWindow : Window
     private void OnSizeChanged(object sender, SizeChangedEventArgs e)
     {
         if (_suppressSizePersist) return;
-        if (Visibility != Visibility.Visible) return; // no persistir mientras está oculta
+        if (!IsVisible) return;                            // oculta → no persistir
+        if (WindowState != WindowState.Normal) return;     // minimizada/maximizada
+        if (Top < 0) return;                               // animación slide en curso
         _sizePersistTimer ??= new System.Windows.Threading.DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(500)
@@ -363,8 +382,14 @@ public partial class MainWindow : Window
     private void PersistSizeTick(object? sender, EventArgs e)
     {
         _sizePersistTimer?.Stop();
+        // Re-chequeamos las precondiciones: el timer pudo haber sido armado y la
+        // ventana entró en animación entre tanto. No persistir ratios degenerados.
+        if (!IsVisible || WindowState != WindowState.Normal || Top < 0) return;
         var screenW = SystemParameters.PrimaryScreenWidth;
         var screenH = SystemParameters.PrimaryScreenHeight;
+        // Sanidad mínima del tamaño: si la ventana está en menos de 200x200 píxeles,
+        // casi seguro estamos en medio de un slide o estado raro — descartar.
+        if (ActualWidth < 200 || ActualHeight < 200) return;
         var (w, h) = GeometryRatios.FromSize(ActualWidth, ActualHeight, screenW, screenH);
         var changed = GeometryRatios.RatiosDifferEnoughToSave(_settings.WidthRatio, w)
                    || GeometryRatios.RatiosDifferEnoughToSave(_settings.HeightRatio, h);

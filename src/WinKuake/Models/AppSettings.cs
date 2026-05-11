@@ -13,10 +13,10 @@ public class AppSettings
     public string HotkeyKey { get; set; } = "F12";
 
     /// <summary>Porcentaje de la pantalla que ocupa la ventana en alto (0.1 a 1.0).</summary>
-    public double HeightRatio { get; set; } = 0.5;
+    public double HeightRatio { get; set; } = 0.7;
 
     /// <summary>Porcentaje de la pantalla que ocupa la ventana en ancho (0.1 a 1.0).</summary>
-    public double WidthRatio { get; set; } = 1.0;
+    public double WidthRatio { get; set; } = 0.9;
 
     /// <summary>Opacidad de la ventana 0.5 a 1.0.</summary>
     public double Opacity { get; set; } = 0.97;
