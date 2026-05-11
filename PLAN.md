@@ -161,17 +161,23 @@ Pivotamos de embeber `wt.exe` (chrome no se podía ocultar, clase de ventana cam
 - Hot-reload de wt settings.json.
 - Persistencia completa de todos los settings.
 
-**Pendiente — Fase 12:**
-- Find global multi-buffer (busca en TODOS los buffers a la vez con overlay).
-- Editor de paleta de tema custom (preview en vivo).
-- Persistencia de splits y tabs al reiniciar app (serializar árbol + commandlines).
-- Workspaces guardables (combo de tabs + perfiles + cwds + layouts, nombrados).
-- Variable `{branch}` (git async + cache).
-- Variable `{selection}` (`term.getSelection()`).
+## Fase 12 — Backlog atacado en una pasada  ✅
+- [x] **Variable `{branch}`**: `GitService.GetBranch(cwd)` ejecuta `git rev-parse --abbrev-ref HEAD` con timeout 600 ms; se llama desde `OpenCommandPalette` con `Task.Run` para no bloquear UI. Cache implícito por invocación.
+- [x] **Variable `{selection}`**: `TerminalPane.GetSelectionAsync()` llama `WebView2.ExecuteScriptAsync("term.getSelection()")` y deserializa el JSON. `TerminalControl.GetActivePaneSelectionAsync()` forward.
+- [x] **Persistencia de tabs entre arranques**: `AppSettings.LastSessionTabs` (List<PersistedTab>) con ProfileGuid/Name, Cwd, CustomLabel, IsPinned. Snapshot al `OnClosed`; `RestoreSessionOrCreateDefault` recrea al primer toggle. Si el cwd es path Windows válido, se aplica como starting directory.
+- [x] **Workspaces guardables**: `AppSettings.Workspaces`. Submenu en ≡ con "Guardar workspace…" (pide nombre con RenameDialog), "Cargar «name»", "Eliminar «name»". Reemplaza si el nombre coincide.
+- [x] **Argumento CLI `--cwd <path>`** (también `--cwd=<path>`): `App.ParseArg` extrae, `MainWindow.InitialCwd` lo aplica como starting directory de la primera tab si el path existe.
+- [x] **Tray icon**: `TrayIconService` usa `System.Windows.Forms.NotifyIcon` (con `UseWindowsForms=true` en csproj). Menú contextual: Mostrar/ocultar, Configuración, Salir. Doble-click toggle. `GlobalUsings.cs` resuelve los homónimos WPF↔Forms a favor de WPF.
+
+## Fase 13 — Backlog
+- Find global multi-buffer (overlay con resultados de TODOS los buffers, click → jump).
+- Editor de paleta de tema custom (color pickers + preview en vivo).
+- Persistencia de árbol de splits (serializar geometría dentro de cada PersistedTab).
 - Auto-update vía GitHub releases.
-- Tray icon con menú contextual.
-- Posibilidad de configurar atajos custom (no solo el hotkey global).
-- Soporte de `--cwd <path>` argumento CLI al lanzar.
+- Configurar atajos custom (no solo hotkey global).
+- Sincronizar settings vía GitHub Gist (opcional).
+- Soporte de SSH/PuTTY integrado.
+- Animación entre cambios de tab.
 
 ---
 

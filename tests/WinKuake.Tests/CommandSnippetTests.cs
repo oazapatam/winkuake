@@ -123,6 +123,30 @@ public class CommandSnippetTests
         Assert.Equal("backup-2026-05-10.tar", CommandSnippetService.Expand("backup-{date}.tar", ctx));
     }
 
+    [Fact]
+    public void Expand_BranchPlaceholder()
+    {
+        var ctx = new SnippetContext { Branch = "feature/login" };
+        Assert.Equal("git push origin feature/login",
+            CommandSnippetService.Expand("git push origin {branch}", ctx));
+    }
+
+    [Fact]
+    public void Expand_SelectionPlaceholder()
+    {
+        var ctx = new SnippetContext { Selection = "hello world" };
+        Assert.Equal("echo 'hello world'",
+            CommandSnippetService.Expand("echo '{selection}'", ctx));
+    }
+
+    [Fact]
+    public void Expand_NullBranchOrSelection_LeavesPlaceholderLiteral()
+    {
+        var ctx = new SnippetContext();
+        Assert.Equal("git checkout {branch}", CommandSnippetService.Expand("git checkout {branch}", ctx));
+        Assert.Equal("echo {selection}", CommandSnippetService.Expand("echo {selection}", ctx));
+    }
+
     // -- Combine defaults + user snippets -----------------------------------
 
     [Fact]

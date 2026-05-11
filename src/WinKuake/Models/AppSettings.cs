@@ -47,6 +47,12 @@ public class AppSettings
     /// <summary>Snippets definidos por el usuario, persistidos como pares Name/Command.</summary>
     public List<UserSnippet> UserSnippets { get; set; } = new();
 
+    /// <summary>Tabs abiertas en la última sesión, restauradas al reabrir la app.</summary>
+    public List<PersistedTab> LastSessionTabs { get; set; } = new();
+
+    /// <summary>Workspaces guardados por el usuario (combos de tabs con nombre).</summary>
+    public List<Workspace> Workspaces { get; set; } = new();
+
     /// <summary>Índice de monitor (0 = primario). -1 = monitor activo.</summary>
     public int MonitorIndex { get; set; } = 0;
 
@@ -72,4 +78,26 @@ public class UserSnippet
 {
     public string Name { get; set; } = "";
     public string Command { get; set; } = "";
+}
+
+/// <summary>Tab persistida entre sesiones.</summary>
+public class PersistedTab
+{
+    /// <summary>GUID del perfil en wt settings.json (preferido para matching).</summary>
+    public string? ProfileGuid { get; set; }
+    /// <summary>Nombre del perfil como fallback si el GUID no coincide.</summary>
+    public string? ProfileName { get; set; }
+    /// <summary>CWD del shell al cerrar la sesión (path Windows o vacío).</summary>
+    public string? Cwd { get; set; }
+    /// <summary>Label custom puesto por el usuario via doble-click en el tab.</summary>
+    public string? CustomLabel { get; set; }
+    /// <summary>Si la tab estaba fijada.</summary>
+    public bool IsPinned { get; set; }
+}
+
+/// <summary>Workspace: lista de tabs nombrada que el usuario puede guardar y cargar.</summary>
+public class Workspace
+{
+    public string Name { get; set; } = "";
+    public List<PersistedTab> Tabs { get; set; } = new();
 }

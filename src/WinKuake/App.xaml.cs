@@ -40,7 +40,10 @@ public partial class App : Application
         // ChromeBackground/AccentBrush/etc. existan ya en Application.Resources.
         SkinService.Apply(SettingsService.Load());
 
-        var window = new MainWindow();
+        // --cwd <path>: arranca la primera tab en ese directorio.
+        var initialCwd = ParseArg(e.Args, "--cwd");
+
+        var window = new MainWindow { InitialCwd = initialCwd };
         MainWindow = window;
         // No la mostramos: arranca oculta y aparece con el hotkey.
         window.InitializeHidden();
@@ -62,5 +65,17 @@ public partial class App : Application
         _singleInstanceMutex?.ReleaseMutex();
         _singleInstanceMutex?.Dispose();
         base.OnExit(e);
+    }
+
+    private static string? ParseArg(string[] args, string name)
+    {
+        for (int i = 0; i < args.Length - 1; i++)
+            if (string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase))
+                return args[i + 1];
+        // Soporta --cwd=value también.
+        foreach (var a in args)
+            if (a.StartsWith(name + "=", StringComparison.OrdinalIgnoreCase))
+                return a.Substring(name.Length + 1);
+        return null;
     }
 }

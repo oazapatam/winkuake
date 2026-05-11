@@ -178,6 +178,8 @@
                                 <Separator />
                                 <MenuItem Header="Paleta de comandos  (Ctrl+Shift+P)" Click="OpenPalette_Click" />
                                 <Separator />
+                                <MenuItem x:Name="WorkspacesMenu" Header="Workspaces" />
+                                <Separator />
                                 <MenuItem Header="Ocultar (Win+F12)"  Click="HideButton_Click" />
                             </ContextMenu>
                         </Button.ContextMenu>

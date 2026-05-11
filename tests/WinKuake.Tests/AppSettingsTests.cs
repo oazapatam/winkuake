@@ -94,6 +94,52 @@ public class AppSettingsTests
     }
 
     [Fact]
+    public void LastSessionTabs_PersistThroughJson()
+    {
+        var src = new AppSettings
+        {
+            LastSessionTabs = new()
+            {
+                new PersistedTab { ProfileGuid = "{abc}", ProfileName = "Ubuntu", Cwd = @"C:\foo", CustomLabel = "bld", IsPinned = true },
+                new PersistedTab { ProfileGuid = "{xyz}", ProfileName = "pwsh" },
+            }
+        };
+        var opts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var dst = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(src, opts), opts)!;
+        Assert.Equal(2, dst.LastSessionTabs.Count);
+        Assert.Equal("Ubuntu", dst.LastSessionTabs[0].ProfileName);
+        Assert.Equal(@"C:\foo", dst.LastSessionTabs[0].Cwd);
+        Assert.Equal("bld", dst.LastSessionTabs[0].CustomLabel);
+        Assert.True(dst.LastSessionTabs[0].IsPinned);
+        Assert.Null(dst.LastSessionTabs[1].Cwd);
+    }
+
+    [Fact]
+    public void Workspaces_PersistThroughJson()
+    {
+        var src = new AppSettings
+        {
+            Workspaces = new()
+            {
+                new Workspace
+                {
+                    Name = "dev",
+                    Tabs = new()
+                    {
+                        new PersistedTab { ProfileName = "Ubuntu", Cwd = @"C:\code" }
+                    }
+                }
+            }
+        };
+        var opts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var dst = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(src, opts), opts)!;
+        Assert.Single(dst.Workspaces);
+        Assert.Equal("dev", dst.Workspaces[0].Name);
+        Assert.Single(dst.Workspaces[0].Tabs);
+        Assert.Equal(@"C:\code", dst.Workspaces[0].Tabs[0].Cwd);
+    }
+
+    [Fact]
     public void AllFields_PersistThroughJson()
     {
         var src = new AppSettings

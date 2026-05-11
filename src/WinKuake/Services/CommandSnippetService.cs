@@ -17,6 +17,8 @@ public sealed class SnippetContext
     public string? Home { get; init; }
     public string? User { get; init; }
     public System.DateTime? Date { get; init; }
+    public string? Branch { get; init; }
+    public string? Selection { get; init; }
 }
 
 /// <summary>
@@ -88,11 +90,13 @@ public static class CommandSnippetService
                 var name = m.Groups["name"].Value.ToLowerInvariant();
                 return name switch
                 {
-                    "cwd"  => ctx.Cwd  ?? m.Value,
-                    "home" => ctx.Home ?? m.Value,
-                    "user" => ctx.User ?? m.Value,
-                    "date" => ctx.Date?.ToString("yyyy-MM-dd") ?? m.Value,
-                    _      => m.Value
+                    "cwd"       => ctx.Cwd       ?? m.Value,
+                    "home"      => ctx.Home      ?? m.Value,
+                    "user"      => ctx.User      ?? m.Value,
+                    "date"      => ctx.Date?.ToString("yyyy-MM-dd") ?? m.Value,
+                    "branch"    => ctx.Branch    ?? m.Value,
+                    "selection" => ctx.Selection ?? m.Value,
+                    _           => m.Value
                 };
             });
     }

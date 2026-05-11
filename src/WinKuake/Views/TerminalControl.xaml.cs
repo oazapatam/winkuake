@@ -52,6 +52,10 @@ public partial class TerminalControl : UserControl
     /// <summary>Envía texto al pane activo. Usado por la paleta de comandos.</summary>
     public void InjectInputToActive(string text) => _activePane?.InjectInput(text);
 
+    /// <summary>Selección de texto del pane activo (para snippet {selection}).</summary>
+    public System.Threading.Tasks.Task<string?> GetActivePaneSelectionAsync()
+        => _activePane?.GetSelectionAsync() ?? System.Threading.Tasks.Task.FromResult<string?>(null);
+
     public TerminalControl()
     {
         InitializeComponent();

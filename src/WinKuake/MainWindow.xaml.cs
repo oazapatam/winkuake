@@ -26,6 +26,9 @@ public partial class MainWindow : Window
     /// <summary>Pestañas mostradas en la tab bar inferior. ViewModel del manager.</summary>
     public ObservableCollection<TabItem> Tabs { get; } = new();
 
+    /// <summary>CWD inicial pasado vía argumento CLI <c>--cwd</c>. Se aplica a la primera tab.</summary>
+    public string? InitialCwd { get; set; }
+
     public MainWindow()
     {
         InitializeComponent();
@@ -43,6 +46,7 @@ public partial class MainWindow : Window
         _sessions.PinChanged     += OnSessionPinChanged;
 
         BuildProfileMenu();
+        BuildWorkspacesMenu();
     }
 
     private static TerminalProfile[] LoadProfiles()
@@ -76,6 +80,7 @@ public partial class MainWindow : Window
     public void ForceShowForDev() => ToggleVisibility();
 
     private System.IO.FileSystemWatcher? _wtWatcher;
+    private TrayIconService? _tray;
 
     private void OnSourceInitialized(object? sender, EventArgs e)
     {
@@ -88,6 +93,20 @@ public partial class MainWindow : Window
         _animator = new WindowAnimator(this);
         UpdateLockButtonGlyph();
         StartWatchingWtSettings();
+        InstallTrayIcon();
+    }
+
+    private void InstallTrayIcon()
+    {
+        _tray = new TrayIconService();
+        _tray.ShowRequested     += () => Dispatcher.InvokeAsync(ToggleVisibility);
+        _tray.HideRequested     += () => Dispatcher.InvokeAsync(() =>
+        {
+            if (_animator?.IsVisible == true) _animator.Hide(GetTargetTop(), _settings.AnimationMs);
+        });
+        _tray.SettingsRequested += () => Dispatcher.InvokeAsync(() => OpenSettings_Click(this, new RoutedEventArgs()));
+        _tray.ExitRequested     += () => Dispatcher.InvokeAsync(() => Application.Current.Shutdown());
+        _tray.Install();
     }
 
     private void StartWatchingWtSettings()
@@ -139,8 +158,7 @@ public partial class MainWindow : Window
             if (!_firstShown)
             {
                 _firstShown = true;
-                var initial = DefaultProfile();
-                _sessions.Create(initial);
+                RestoreSessionOrCreateDefault();
             }
             else Activate();
         }
@@ -151,6 +169,55 @@ public partial class MainWindow : Window
         return _profiles.FirstOrDefault(p => p.IsDefault && p.CommandLine is not null)
             ?? _profiles.FirstOrDefault(p => p.CommandLine is not null)
             ?? new TerminalProfile("PowerShell", "pwsh") { CommandLine = "powershell.exe" };
+    }
+
+    private void RestoreSessionOrCreateDefault()
+    {
+        // --cwd CLI tiene prioridad: arranca tab fresca en ese dir, sin restaurar.
+        if (!string.IsNullOrEmpty(InitialCwd) && System.IO.Directory.Exists(InitialCwd))
+        {
+            var p = DefaultProfile() with { StartingDirectory = InitialCwd };
+            _sessions.Create(p);
+            return;
+        }
+        // Si hay tabs persistidas en la última sesión, las recreamos.
+        if (_settings.LastSessionTabs.Count == 0)
+        {
+            _sessions.Create(DefaultProfile());
+            return;
+        }
+        foreach (var t in _settings.LastSessionTabs)
+        {
+            var profile = ResolvePersistedProfile(t);
+            // Aplicar cwd si es un path Windows válido como starting directory.
+            var startDir = (!string.IsNullOrEmpty(t.Cwd) && System.IO.Path.IsPathRooted(t.Cwd) && System.IO.Directory.Exists(t.Cwd))
+                ? t.Cwd : profile.StartingDirectory;
+            var session = _sessions.Create(profile with { StartingDirectory = startDir });
+            if (!string.IsNullOrEmpty(t.CustomLabel)) _sessions.Rename(session.Id, t.CustomLabel);
+            if (t.IsPinned) _sessions.TogglePin(session.Id);
+        }
+    }
+
+    private TerminalProfile ResolvePersistedProfile(PersistedTab t)
+    {
+        TerminalProfile? p = null;
+        if (!string.IsNullOrEmpty(t.ProfileGuid))
+            p = _profiles.FirstOrDefault(x => string.Equals(x.Guid, t.ProfileGuid, StringComparison.OrdinalIgnoreCase));
+        if (p is null && !string.IsNullOrEmpty(t.ProfileName))
+            p = _profiles.FirstOrDefault(x => string.Equals(x.DisplayName, t.ProfileName, StringComparison.OrdinalIgnoreCase));
+        return p ?? DefaultProfile();
+    }
+
+    private List<PersistedTab> SnapshotCurrentSessions()
+    {
+        return _sessions.Sessions.Select(s => new PersistedTab
+        {
+            ProfileGuid = s.Profile?.Guid,
+            ProfileName = s.Profile?.DisplayName,
+            Cwd         = _controls.TryGetValue(s.Id, out var c) ? c.CurrentCwd : null,
+            CustomLabel = s.CustomLabel,
+            IsPinned    = s.IsPinned,
+        }).ToList();
     }
 
     // -- Manager → UI sync ------------------------------------------------
@@ -426,8 +493,79 @@ public partial class MainWindow : Window
         if (tab is not null) tab.IsPinned = s.IsPinned;
     }
 
-    private void OpenCommandPalette(TerminalControl ctrl)
+    // -- Workspaces --------------------------------------------------------
+
+    private void BuildWorkspacesMenu()
     {
+        WorkspacesMenu.Items.Clear();
+
+        var save = new MenuItem { Header = "Guardar workspace actual…" };
+        save.Click += (_, _) => SaveCurrentWorkspace();
+        WorkspacesMenu.Items.Add(save);
+
+        if (_settings.Workspaces.Count > 0)
+        {
+            WorkspacesMenu.Items.Add(new Separator());
+            foreach (var ws in _settings.Workspaces)
+            {
+                var capture = ws;
+                var load = new MenuItem { Header = $"Cargar «{ws.Name}»" };
+                load.Click += (_, _) => LoadWorkspace(capture);
+                WorkspacesMenu.Items.Add(load);
+
+                var del = new MenuItem { Header = $"Eliminar «{ws.Name}»" };
+                del.Click += (_, _) => DeleteWorkspace(capture);
+                WorkspacesMenu.Items.Add(del);
+            }
+        }
+    }
+
+    private void SaveCurrentWorkspace()
+    {
+        var dlg = new RenameDialog("nuevo-workspace") { Owner = this, Title = "Guardar workspace" };
+        if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(dlg.Result)) return;
+        var name = dlg.Result.Trim();
+        // Reemplaza si ya existe.
+        _settings.Workspaces.RemoveAll(w => string.Equals(w.Name, name, StringComparison.OrdinalIgnoreCase));
+        _settings.Workspaces.Add(new Workspace { Name = name, Tabs = SnapshotCurrentSessions() });
+        SettingsService.Save(_settings);
+        BuildWorkspacesMenu();
+    }
+
+    private void LoadWorkspace(Workspace ws)
+    {
+        // Cierra todas las sesiones actuales y crea las del workspace.
+        var ids = _sessions.Sessions.Select(s => s.Id).ToList();
+        foreach (var id in ids) _sessions.Close(id);
+        foreach (var t in ws.Tabs)
+        {
+            var profile = ResolvePersistedProfile(t);
+            var startDir = (!string.IsNullOrEmpty(t.Cwd) && System.IO.Path.IsPathRooted(t.Cwd) && System.IO.Directory.Exists(t.Cwd))
+                ? t.Cwd : profile.StartingDirectory;
+            var s = _sessions.Create(profile with { StartingDirectory = startDir });
+            if (!string.IsNullOrEmpty(t.CustomLabel)) _sessions.Rename(s.Id, t.CustomLabel);
+            if (t.IsPinned) _sessions.TogglePin(s.Id);
+        }
+    }
+
+    private void DeleteWorkspace(Workspace ws)
+    {
+        var r = MessageBox.Show(this, $"¿Eliminar workspace «{ws.Name}»?", "WinKuake",
+            MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (r != MessageBoxResult.Yes) return;
+        _settings.Workspaces.Remove(ws);
+        SettingsService.Save(_settings);
+        BuildWorkspacesMenu();
+    }
+
+    private async void OpenCommandPalette(TerminalControl ctrl)
+    {
+        // Pre-resolución de contexto async: selección de xterm + branch git.
+        // Lo hacemos antes de mostrar la ventana para que {branch}/{selection}
+        // ya estén disponibles al inyectar.
+        var selection = await ctrl.GetActivePaneSelectionAsync();
+        var branch = await System.Threading.Tasks.Task.Run(() => GitService.GetBranch(ctrl.CurrentCwd));
+
         var userSnippets = _settings.UserSnippets
             .Select(u => new CommandSnippet(u.Name, u.Command));
         var all = CommandSnippetService.LoadAll(userSnippets);
@@ -436,10 +574,12 @@ public partial class MainWindow : Window
         {
             var ctx = new SnippetContext
             {
-                Cwd  = ctrl.CurrentCwd,
-                Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                User = Environment.UserName,
-                Date = DateTime.Now,
+                Cwd       = ctrl.CurrentCwd,
+                Home      = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                User      = Environment.UserName,
+                Date      = DateTime.Now,
+                Branch    = branch,
+                Selection = selection,
             };
             var command = CommandSnippetService.Expand(snip.Command, ctx);
             var text = dlg.ExecuteAfterInject ? command + "\n" : command;
@@ -581,7 +721,17 @@ public partial class MainWindow : Window
 
     private void ExitButton_Click(object sender, RoutedEventArgs e) => Application.Current.Shutdown();
 
-    private void OnClosed(object? sender, EventArgs e) => _hotkey.Dispose();
+    private void OnClosed(object? sender, EventArgs e)
+    {
+        try
+        {
+            _settings.LastSessionTabs = SnapshotCurrentSessions();
+            SettingsService.Save(_settings);
+        }
+        catch (Exception ex) { CrashLogger.Log(ex); }
+        _hotkey.Dispose();
+        _tray?.Dispose();
+    }
 
     private string HotkeyDisplay()
     {

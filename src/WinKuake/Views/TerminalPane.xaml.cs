@@ -48,6 +48,20 @@ public partial class TerminalPane : UserControl
     /// <summary>Escribe texto directamente al PTY (uso: paleta de comandos).</summary>
     public void InjectInput(string text) => _pty.Write(text);
 
+    /// <summary>Devuelve la selección actual del xterm, vacío si no hay nada.</summary>
+    public async System.Threading.Tasks.Task<string?> GetSelectionAsync()
+    {
+        if (WebView.CoreWebView2 is null) return null;
+        try
+        {
+            var raw = await WebView.CoreWebView2.ExecuteScriptAsync("term.getSelection()");
+            if (string.IsNullOrEmpty(raw) || raw == "null") return null;
+            // raw viene como JSON string ("..."), des-escapamos.
+            return JsonSerializer.Deserialize<string>(raw);
+        }
+        catch (Exception ex) { CrashLogger.Log(ex); return null; }
+    }
+
     public TerminalPane()
     {
         InitializeComponent();
