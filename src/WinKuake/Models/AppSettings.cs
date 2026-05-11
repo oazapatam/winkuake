@@ -86,6 +86,20 @@ public class AppSettings
     public Dictionary<string, string> CustomKeybindings { get; set; } = new();
 
     /// <summary>
+    /// Perfiles de terminal que la app conoce: detectados automáticamente
+    /// (PowerShell, cmd, WSL distros, Git Bash, VS Developer) o agregados
+    /// a mano por el usuario. Es la fuente única de verdad — la app NO
+    /// lee perfiles del settings.json de Windows Terminal.
+    /// </summary>
+    public List<UserProfile> UserProfiles { get; set; } = new();
+
+    /// <summary>
+    /// Id (GUID) del perfil que se abre por defecto. Null = heurística
+    /// (primer pwsh > primer powershell > primer cmd > primero de la lista).
+    /// </summary>
+    public string? DefaultProfileId { get; set; }
+
+    /// <summary>
     /// Copia profunda de todos los campos. Necesaria para que el diálogo de
     /// configuración pueda editar un duplicado y descartar cambios al cancelar
     /// sin perder colecciones que no edita (LastSessionTabs, Workspaces...).
@@ -114,6 +128,50 @@ public class AppSettings
         Workspaces          = Workspaces.Select(w => w.DeepClone()).ToList(),
         CustomTerminalTheme = CustomTerminalTheme?.DeepClone(),
         CustomKeybindings   = new Dictionary<string, string>(CustomKeybindings),
+        UserProfiles        = UserProfiles.Select(p => p.DeepClone()).ToList(),
+        DefaultProfileId    = DefaultProfileId,
+    };
+}
+
+/// <summary>
+/// Perfil de terminal que el usuario ve y puede editar. Es la unidad
+/// persistida en <see cref="AppSettings.UserProfiles"/>. Tres campos lo
+/// identifican operativamente: <see cref="Id"/> (estable entre runs),
+/// <see cref="Name"/> (lo que se muestra) y <see cref="CommandLine"/>
+/// (qué proceso lanzar via ConPTY).
+/// </summary>
+public class UserProfile
+{
+    /// <summary>GUID estable. Generado al crear el perfil; no cambia al renombrar.</summary>
+    public string Id { get; set; } = "";
+
+    /// <summary>Etiqueta visible en menús y status bar.</summary>
+    public string Name { get; set; } = "";
+
+    /// <summary>Línea de comandos lista para ConPTY. P.ej. "pwsh.exe", "wsl.exe -d Ubuntu --shell-type login".</summary>
+    public string CommandLine { get; set; } = "";
+
+    /// <summary>Directorio inicial. Null/empty = heredar del proceso padre.</summary>
+    public string? StartingDirectory { get; set; }
+
+    /// <summary>Glyph para el ícono (Segoe MDL2 o emoji). Null = derivado del Name.</summary>
+    public string? IconGlyph { get; set; }
+
+    /// <summary>Origen: "Detected" (auto) o "Custom" (manual). Solo informativo en la UI.</summary>
+    public string Source { get; set; } = "Custom";
+
+    /// <summary>El usuario lo ocultó del menú sin borrarlo.</summary>
+    public bool Hidden { get; set; }
+
+    public UserProfile DeepClone() => new()
+    {
+        Id = Id,
+        Name = Name,
+        CommandLine = CommandLine,
+        StartingDirectory = StartingDirectory,
+        IconGlyph = IconGlyph,
+        Source = Source,
+        Hidden = Hidden,
     };
 }
 
