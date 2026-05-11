@@ -276,6 +276,11 @@
       postToHost({ type: 'openPalette' });
       return false;
     }
+    // Ctrl+Shift+B : toggle broadcast (mismo input a todos los panes)
+    if (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyB') {
+      postToHost({ type: 'toggleBroadcast' });
+      return false;
+    }
     // Ctrl+Shift+S : guardar buffer en disco
     if (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyS') {
       // Capturamos todo el buffer (visible + scrollback) como texto.

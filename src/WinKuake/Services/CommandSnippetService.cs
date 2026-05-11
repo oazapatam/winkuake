@@ -10,6 +10,14 @@ public sealed record CommandSnippet(string Name, string Command)
     public override string ToString() => Name;
 }
 
+/// <summary>Contexto de expansión de placeholders en snippets.</summary>
+public sealed class SnippetContext
+{
+    public string? Cwd { get; init; }
+    public string? Home { get; init; }
+    public string? User { get; init; }
+}
+
 /// <summary>
 /// Provee la lista de snippets y filtrado por substring. La lista es
 /// estática por ahora; en una iteración futura se persistirá en settings.
@@ -55,5 +63,28 @@ public static class CommandSnippetService
                 s.Name.Contains(t, StringComparison.OrdinalIgnoreCase) ||
                 s.Command.Contains(t, StringComparison.OrdinalIgnoreCase)))
             .ToList();
+    }
+
+    /// <summary>
+    /// Reemplaza <c>{cwd}</c>, <c>{home}</c>, <c>{user}</c> por los valores del
+    /// contexto. Case-insensitive. Si una variable no existe, se deja literal.
+    /// </summary>
+    public static string Expand(string command, SnippetContext? ctx)
+    {
+        if (string.IsNullOrEmpty(command) || ctx is null) return command;
+        return System.Text.RegularExpressions.Regex.Replace(
+            command,
+            @"\{(?<name>[a-zA-Z_]+)\}",
+            m =>
+            {
+                var name = m.Groups["name"].Value.ToLowerInvariant();
+                return name switch
+                {
+                    "cwd"  => ctx.Cwd  ?? m.Value,
+                    "home" => ctx.Home ?? m.Value,
+                    "user" => ctx.User ?? m.Value,
+                    _      => m.Value
+                };
+            });
     }
 }

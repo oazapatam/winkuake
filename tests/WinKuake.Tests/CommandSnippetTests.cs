@@ -72,4 +72,47 @@ public class CommandSnippetTests
         var s = new CommandSnippet("Status", "git status");
         Assert.Equal("Status", s.ToString());
     }
+
+    // -- Variable expansion --------------------------------------------------
+
+    [Fact]
+    public void Expand_ReplacesCwd()
+    {
+        var ctx = new SnippetContext { Cwd = "/home/foo" };
+        Assert.Equal("cd /home/foo", CommandSnippetService.Expand("cd {cwd}", ctx));
+    }
+
+    [Fact]
+    public void Expand_ReplacesMultipleOccurrences()
+    {
+        var ctx = new SnippetContext { Cwd = "/x" };
+        Assert.Equal("cp /x/a /x/b", CommandSnippetService.Expand("cp {cwd}/a {cwd}/b", ctx));
+    }
+
+    [Fact]
+    public void Expand_UnknownPlaceholder_LeavesAsIs()
+    {
+        var ctx = new SnippetContext { Cwd = "/x" };
+        Assert.Equal("hola {desconocido}", CommandSnippetService.Expand("hola {desconocido}", ctx));
+    }
+
+    [Fact]
+    public void Expand_NullContext_LeavesPlaceholdersAsIs()
+    {
+        Assert.Equal("cd {cwd}", CommandSnippetService.Expand("cd {cwd}", null));
+    }
+
+    [Fact]
+    public void Expand_NoPlaceholders_ReturnsSameString()
+    {
+        Assert.Equal("git status", CommandSnippetService.Expand("git status", new SnippetContext()));
+    }
+
+    [Fact]
+    public void Expand_IsCaseInsensitiveForPlaceholders()
+    {
+        var ctx = new SnippetContext { Cwd = "/x" };
+        Assert.Equal("/x", CommandSnippetService.Expand("{CWD}", ctx));
+        Assert.Equal("/x", CommandSnippetService.Expand("{Cwd}", ctx));
+    }
 }

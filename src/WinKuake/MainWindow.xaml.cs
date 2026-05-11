@@ -168,6 +168,10 @@ public partial class MainWindow : Window
         ctrl.SaveBufferRequested   += SaveBufferToFile;
         ctrl.OpenFileRequested     += path => OpenFileFromTerminal(ctrl, path);
         ctrl.OpenPaletteRequested  += () => OpenCommandPalette(ctrl);
+        ctrl.BroadcastChanged      += _ =>
+        {
+            if (_sessions.Active?.Id == s.Id) UpdateStatusForActive();
+        };
         ctrl.CwdChanged += cwd =>
         {
             if (_sessions.Active?.Id == s.Id) UpdateStatusForActive();
@@ -215,10 +219,11 @@ public partial class MainWindow : Window
             return;
         }
         var glyph = ProfileIconHelper.GlyphFor(p);
-        var cwd = _controls.TryGetValue(active.Id, out var ctrl) ? ctrl.CurrentCwd : null;
-        StatusTitle.Text = string.IsNullOrEmpty(cwd)
-            ? $"{glyph}  {p.DisplayName}"
-            : $"{glyph}  {p.DisplayName}  ·  {AbbreviateCwd(cwd!)}";
+        var ctrl = _controls.TryGetValue(active.Id, out var c) ? c : null;
+        var cwd = ctrl?.CurrentCwd;
+        var broadcast = ctrl?.BroadcastEnabled == true ? "  ·  📡 BROADCAST" : "";
+        var cwdPart = string.IsNullOrEmpty(cwd) ? "" : $"  ·  {AbbreviateCwd(cwd!)}";
+        StatusTitle.Text = $"{glyph}  {p.DisplayName}{cwdPart}{broadcast}";
     }
 
     private static string AbbreviateCwd(string cwd)
@@ -420,9 +425,14 @@ public partial class MainWindow : Window
         var dlg = new QuickCommandWindow(CommandSnippetService.Defaults()) { Owner = this };
         if (dlg.ShowDialog() == true && dlg.SelectedSnippet is { } snip)
         {
-            // Enter normal = inyectar texto sin ejecutar (el usuario revisa y pulsa Enter).
-            // Shift+Enter = inyectar + ejecutar (\n al final).
-            var text = dlg.ExecuteAfterInject ? snip.Command + "\n" : snip.Command;
+            var ctx = new SnippetContext
+            {
+                Cwd  = ctrl.CurrentCwd,
+                Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                User = Environment.UserName,
+            };
+            var command = CommandSnippetService.Expand(snip.Command, ctx);
+            var text = dlg.ExecuteAfterInject ? command + "\n" : command;
             ctrl.InjectInputToActive(text);
         }
     }

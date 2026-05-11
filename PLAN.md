@@ -124,13 +124,18 @@ Pivotamos de embeber `wt.exe` (chrome no se podía ocultar, clase de ventana cam
 - [x] **Enter** inyecta el texto al terminal (el usuario revisa y ejecuta). **Shift+Enter** inyecta + ejecuta directamente (`\n` final).
 - [x] Si la query no matchea ningún snippet, se inyecta el texto crudo como comando ad-hoc.
 
-## Fase 9 — Backlog
-- User-editable snippets (persistir en `AppSettings.UserSnippets`).
+## Fase 9 — Broadcast + variables en snippets  ✅
+- [x] **Broadcast input**: `Ctrl+Shift+B` activa/desactiva. Cuando está activo, lo que escribes en cualquier pane se replica al resto de panes de la sesión. Status bar muestra `📡 BROADCAST` cuando está on.
+- [x] **Variables en snippets**: `{cwd}`, `{home}`, `{user}` se expanden al inyectar. Case-insensitive. Si la variable no existe, se deja literal. 6 tests cubriendo (118 total).
+
+## Fase 10 — Backlog
+- User-editable snippets (CRUD en Settings con persistencia).
 - Find global multi-buffer (`Ctrl+Shift+F` busca en TODOS los buffers).
 - Editor de paleta custom (tab adicional en Settings).
 - Persistencia de splits / layout al cerrar y reabrir tab.
-- Broadcast input (mismo input a varios panes).
-- Soporte para variables en snippets (ej. `{cwd}`, `{branch}`).
+- Variables adicionales: `{branch}` (rama git), `{date}`, `{selection}`.
+- Atajo para ciclar entre panes (`Ctrl+Shift+`].
+- Workspaces guardables (combo de tabs + paths).
 
 ---
 

@@ -42,6 +42,8 @@ public partial class TerminalPane : UserControl
     public event Action<string>? FocusPaneRequested;
     public event Action<string>? OpenFileRequested;
     public event Action? OpenPaletteRequested;
+    public event Action? ToggleBroadcastRequested;
+    public event Action<string>? InputReceived;
 
     /// <summary>Escribe texto directamente al PTY (uso: paleta de comandos).</summary>
     public void InjectInput(string text) => _pty.Write(text);
@@ -154,7 +156,12 @@ public partial class TerminalPane : UserControl
                     break;
 
                 case "in":
-                    if (root.TryGetProperty("data", out var d)) _pty.Write(d.GetString() ?? "");
+                    if (root.TryGetProperty("data", out var d))
+                    {
+                        var input = d.GetString() ?? "";
+                        _pty.Write(input);
+                        InputReceived?.Invoke(input);
+                    }
                     break;
 
                 case "resize":
@@ -223,6 +230,9 @@ public partial class TerminalPane : UserControl
                     break;
                 case "openPalette":
                     OpenPaletteRequested?.Invoke();
+                    break;
+                case "toggleBroadcast":
+                    ToggleBroadcastRequested?.Invoke();
                     break;
             }
         }

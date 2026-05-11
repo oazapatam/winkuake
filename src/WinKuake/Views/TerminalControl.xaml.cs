@@ -37,6 +37,17 @@ public partial class TerminalControl : UserControl
     public event Action<string>? SaveBufferRequested;
     public event Action<string>? OpenFileRequested;
     public event Action? OpenPaletteRequested;
+    public event Action<bool>? BroadcastChanged;
+
+    /// <summary>Cuando true, el input de cualquier pane se replica al resto.</summary>
+    public bool BroadcastEnabled { get; private set; }
+
+    public void ToggleBroadcast()
+    {
+        if (_panes.Count < 2) return; // sin sentido con un solo pane
+        BroadcastEnabled = !BroadcastEnabled;
+        BroadcastChanged?.Invoke(BroadcastEnabled);
+    }
 
     /// <summary>Envía texto al pane activo. Usado por la paleta de comandos.</summary>
     public void InjectInputToActive(string text) => _activePane?.InjectInput(text);
@@ -103,6 +114,13 @@ public partial class TerminalControl : UserControl
         pane.FocusReceived            += () => SetActivePane(pane);
         pane.FocusPaneRequested       += FocusInDirection;
         pane.OpenPaletteRequested     += () => OpenPaletteRequested?.Invoke();
+        pane.ToggleBroadcastRequested += ToggleBroadcast;
+        pane.InputReceived += text =>
+        {
+            if (!BroadcastEnabled) return;
+            foreach (var p in _panes)
+                if (p != pane) p.InjectInput(text);
+        };
         return pane;
     }
 
