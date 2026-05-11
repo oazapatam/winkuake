@@ -44,6 +44,9 @@ public class AppSettings
     /// <summary>Tamaño de fuente del terminal en pt.</summary>
     public int TerminalFontSize { get; set; } = 14;
 
+    /// <summary>Snippets definidos por el usuario, persistidos como pares Name/Command.</summary>
+    public List<UserSnippet> UserSnippets { get; set; } = new();
+
     /// <summary>Índice de monitor (0 = primario). -1 = monitor activo.</summary>
     public int MonitorIndex { get; set; } = 0;
 
@@ -62,4 +65,11 @@ public class AppSettings
 
     /// <summary>Color de acento (pestaña activa, hover). Default = #0E7AB5.</summary>
     public string AccentHex { get; set; } = "#0E7AB5";
+}
+
+/// <summary>POCO serializable para snippets del usuario.</summary>
+public class UserSnippet
+{
+    public string Name { get; set; } = "";
+    public string Command { get; set; } = "";
 }

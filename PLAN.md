@@ -128,14 +128,23 @@ Pivotamos de embeber `wt.exe` (chrome no se podía ocultar, clase de ventana cam
 - [x] **Broadcast input**: `Ctrl+Shift+B` activa/desactiva. Cuando está activo, lo que escribes en cualquier pane se replica al resto de panes de la sesión. Status bar muestra `📡 BROADCAST` cuando está on.
 - [x] **Variables en snippets**: `{cwd}`, `{home}`, `{user}` se expanden al inyectar. Case-insensitive. Si la variable no existe, se deja literal. 6 tests cubriendo (118 total).
 
-## Fase 10 — Backlog
-- User-editable snippets (CRUD en Settings con persistencia).
-- Find global multi-buffer (`Ctrl+Shift+F` busca en TODOS los buffers).
-- Editor de paleta custom (tab adicional en Settings).
-- Persistencia de splits / layout al cerrar y reabrir tab.
-- Variables adicionales: `{branch}` (rama git), `{date}`, `{selection}`.
-- Atajo para ciclar entre panes (`Ctrl+Shift+`].
-- Workspaces guardables (combo de tabs + paths).
+## Fase 10 — Snippets editables + variable {date}  ✅
+- [x] `AppSettings.UserSnippets`: `List<UserSnippet>` persistido en `settings.json`.
+- [x] Nueva tab **"Snippets"** en SettingsWindow: `DataGrid` editable in-place con columnas Name / Command. `CanUserAddRows=True` (la fila vacía al final agrega una). Tip visible sobre las variables disponibles.
+- [x] `CommandSnippetService.LoadAll(userSnippets)`: combina defaults + user (user al final). Null → solo defaults. 2 tests.
+- [x] `MainWindow.OpenCommandPalette` ahora consume `LoadAll(_settings.UserSnippets)` → la paleta muestra defaults + tuyos.
+- [x] Variable `{date}` se expande a `yyyy-MM-dd` (date local). 1 test cubriendo.
+- [x] Snippets vacíos (name o command en blanco) se descartan al guardar.
+
+## Fase 11 — Backlog
+- Find global multi-buffer (`Ctrl+Shift+F` busca en TODOS los buffers a la vez con UI overlay).
+- Editor de paleta custom (tab adicional en Settings con preview).
+- Persistencia de splits / layout al cerrar y reabrir tab (serializar árbol).
+- Variable `{branch}` (ejecutar `git rev-parse --abbrev-ref HEAD` async y cachear).
+- Variable `{selection}` (pedir selección a xterm via `term.getSelection()`).
+- Workspaces guardables (combo de tabs + perfiles + cwds + layouts).
+- Auto-update vía GitHub releases.
+- Tray icon con menú contextual rápido.
 
 ---
 

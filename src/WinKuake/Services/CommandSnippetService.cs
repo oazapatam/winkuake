@@ -16,6 +16,7 @@ public sealed class SnippetContext
     public string? Cwd { get; init; }
     public string? Home { get; init; }
     public string? User { get; init; }
+    public System.DateTime? Date { get; init; }
 }
 
 /// <summary>
@@ -54,6 +55,13 @@ public static class CommandSnippetService
     /// Si la query tiene varios tokens (separados por espacios), TODOS deben
     /// matchear (estilo VSCode command palette).
     /// </summary>
+    /// <summary>Concatena defaults con los snippets del usuario; user al final.</summary>
+    public static IReadOnlyList<CommandSnippet> LoadAll(IEnumerable<CommandSnippet>? userSnippets)
+    {
+        if (userSnippets is null) return Defaults();
+        return Defaults().Concat(userSnippets).ToList();
+    }
+
     public static IReadOnlyList<CommandSnippet> Filter(IEnumerable<CommandSnippet> snippets, string query)
     {
         if (string.IsNullOrWhiteSpace(query)) return snippets.ToList();
@@ -83,6 +91,7 @@ public static class CommandSnippetService
                     "cwd"  => ctx.Cwd  ?? m.Value,
                     "home" => ctx.Home ?? m.Value,
                     "user" => ctx.User ?? m.Value,
+                    "date" => ctx.Date?.ToString("yyyy-MM-dd") ?? m.Value,
                     _      => m.Value
                 };
             });

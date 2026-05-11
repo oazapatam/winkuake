@@ -422,7 +422,10 @@ public partial class MainWindow : Window
 
     private void OpenCommandPalette(TerminalControl ctrl)
     {
-        var dlg = new QuickCommandWindow(CommandSnippetService.Defaults()) { Owner = this };
+        var userSnippets = _settings.UserSnippets
+            .Select(u => new CommandSnippet(u.Name, u.Command));
+        var all = CommandSnippetService.LoadAll(userSnippets);
+        var dlg = new QuickCommandWindow(all) { Owner = this };
         if (dlg.ShowDialog() == true && dlg.SelectedSnippet is { } snip)
         {
             var ctx = new SnippetContext
@@ -430,6 +433,7 @@ public partial class MainWindow : Window
                 Cwd  = ctrl.CurrentCwd,
                 Home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 User = Environment.UserName,
+                Date = DateTime.Now,
             };
             var command = CommandSnippetService.Expand(snip.Command, ctx);
             var text = dlg.ExecuteAfterInject ? command + "\n" : command;

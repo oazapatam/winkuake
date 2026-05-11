@@ -115,4 +115,33 @@ public class CommandSnippetTests
         Assert.Equal("/x", CommandSnippetService.Expand("{CWD}", ctx));
         Assert.Equal("/x", CommandSnippetService.Expand("{Cwd}", ctx));
     }
+
+    [Fact]
+    public void Expand_DatePlaceholder_UsesIsoDate()
+    {
+        var ctx = new SnippetContext { Date = new System.DateTime(2026, 5, 10) };
+        Assert.Equal("backup-2026-05-10.tar", CommandSnippetService.Expand("backup-{date}.tar", ctx));
+    }
+
+    // -- Combine defaults + user snippets -----------------------------------
+
+    [Fact]
+    public void LoadAll_AppendsUserSnippetsAfterDefaults()
+    {
+        var user = new[]
+        {
+            new CommandSnippet("Mi script", "./scripts/run.sh"),
+        };
+        var all = CommandSnippetService.LoadAll(user);
+        Assert.True(all.Count > user.Length);
+        // El último elemento es el del usuario.
+        Assert.Equal("Mi script", all[^1].Name);
+    }
+
+    [Fact]
+    public void LoadAll_NullUser_ReturnsDefaults()
+    {
+        var all = CommandSnippetService.LoadAll(null);
+        Assert.Equal(CommandSnippetService.Defaults().Count, all.Count);
+    }
 }

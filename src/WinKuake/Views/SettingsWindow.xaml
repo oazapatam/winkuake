@@ -145,6 +145,44 @@
                 </ScrollViewer>
             </TabItem>
 
+            <!-- =================== SNIPPETS =================== -->
+            <TabItem Header="Snippets">
+                <Grid Margin="14">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Margin="0,0,0,8"
+                               Text="Snippets propios que aparecen en la paleta (Ctrl+Shift+P) además de los predefinidos. Soporta variables {cwd}, {home}, {user}, {date}." />
+
+                    <DataGrid Grid.Row="1"
+                              x:Name="SnippetsGrid"
+                              AutoGenerateColumns="False"
+                              HeadersVisibility="Column"
+                              GridLinesVisibility="None"
+                              CanUserAddRows="True"
+                              CanUserDeleteRows="True"
+                              CanUserResizeRows="False"
+                              Background="#252526"
+                              Foreground="{DynamicResource ChromeForeground}"
+                              RowBackground="#252526"
+                              AlternatingRowBackground="#1f1f1f"
+                              BorderBrush="{DynamicResource ChromeBorder}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Nombre"  Binding="{Binding Name}"    Width="200" />
+                            <DataGridTextColumn Header="Comando" Binding="{Binding Command}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="Tip: el placeholder {cwd} se sustituye por el directorio actual del shell al inyectar."
+                                   FontSize="11" Foreground="#9A9A9A" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
             <!-- =================== APARIENCIA =================== -->
             <TabItem Header="Apariencia">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">

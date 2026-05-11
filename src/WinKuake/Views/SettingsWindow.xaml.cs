@@ -62,6 +62,11 @@ public partial class SettingsWindow : Window
 
         SelectScrollbackItem(current.ScrollbackLines);
 
+        // Snippets: bind a ObservableCollection editable.
+        _snippetsView = new System.Collections.ObjectModel.ObservableCollection<UserSnippet>(
+            current.UserSnippets.Select(s => new UserSnippet { Name = s.Name, Command = s.Command }));
+        SnippetsGrid.ItemsSource = _snippetsView;
+
         SyncBoxesFromSliders();
         UpdateSwatches();
 
@@ -82,6 +87,7 @@ public partial class SettingsWindow : Window
     }
 
     private bool _suppressSync;
+    private System.Collections.ObjectModel.ObservableCollection<UserSnippet> _snippetsView = new();
 
     private void SyncBoxesFromSliders()
     {
@@ -161,6 +167,7 @@ public partial class SettingsWindow : Window
         ScrollbackLines     = s.ScrollbackLines,
         TerminalThemeName   = s.TerminalThemeName,
         TerminalFontSize    = s.TerminalFontSize,
+        UserSnippets        = s.UserSnippets.Select(x => new UserSnippet { Name = x.Name, Command = x.Command }).ToList(),
     };
 
     private void SelectScrollbackItem(int value)
@@ -215,6 +222,12 @@ public partial class SettingsWindow : Window
         Result.TerminalThemeName = CmbTheme.SelectedItem?.ToString() ?? "VSCode Dark+";
         Result.TerminalFontSize  = (int)SldFontSize.Value;
         Result.ScrollbackLines   = ReadScrollback();
+
+        // Snippets: persistimos solo los que tienen al menos nombre y comando.
+        Result.UserSnippets = _snippetsView
+            .Where(s => !string.IsNullOrWhiteSpace(s.Name) && !string.IsNullOrWhiteSpace(s.Command))
+            .Select(s => new UserSnippet { Name = s.Name.Trim(), Command = s.Command.Trim() })
+            .ToList();
 
         DialogResult = true;
         Close();
