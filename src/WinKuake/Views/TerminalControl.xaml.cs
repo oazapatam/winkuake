@@ -273,16 +273,17 @@ public partial class TerminalControl : UserControl
         var slot = FindSlotOf(_activePane);
         if (slot is null) return false;
 
-        var existingPane = _activePane; // queda en el primer slot
+        var existingPane = _activePane;
         var newPane = CreatePane();
-        // El nuevo pane hereda el perfil del pane source del split.
         newPane.OriginProfile = existingPane.OriginProfile;
 
-        var firstSlot  = NewSlot(); firstSlot.Child  = existingPane; // mover pane existente
-        slot.Child = null; // desconecta antes de re-asignar
+        // Desreparentar existingPane del slot original antes de moverlo.
+        slot.Child = null;
+        var firstSlot = NewSlot();
         firstSlot.Child = existingPane;
 
-        var secondSlot = NewSlot(); secondSlot.Child = newPane;
+        var secondSlot = NewSlot();
+        secondSlot.Child = newPane;
 
         var grid = new Grid();
         if (orientation == Orientation.Vertical)

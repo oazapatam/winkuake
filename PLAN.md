@@ -16,47 +16,47 @@ Pivotamos de embeber `wt.exe` (chrome no se podía ocultar, clase de ventana cam
 
 ---
 
-## Fase 1 — Terminal profesional (ESTA SESIÓN)
+## Fase 1 — Terminal profesional  ✅
 
 ### 1.A Addons xterm.js
-- [ ] `addon-web-links` — URLs clickeables.
-- [ ] `addon-search` — buscar en buffer con `Ctrl+Shift+F`.
-- [ ] `addon-unicode11` — soporte emojis modernos.
-- [ ] `addon-webgl` — rendering GPU acelerado.
-- [ ] `addon-clipboard` — copiar OSC 52.
+- [x] `addon-web-links` — URLs clickeables.
+- [x] `addon-search` — buscar en buffer con `Ctrl+Shift+F`.
+- [x] `addon-unicode11` — soporte emojis modernos.
+- [x] `addon-webgl` — rendering GPU acelerado.
+- [x] `addon-clipboard` — copiar OSC 52.
 
 ### 1.B Tema y tipografía
-- [ ] Paleta tipo VSCode Dark+ (background `#0c0c0c`, ANSI colores ricos).
-- [ ] Font `Cascadia Code`, fallback `Consolas`.
-- [ ] Letter-spacing/line-height razonables.
-- [ ] Cursor block parpadeante.
+- [x] Paleta tipo VSCode Dark+ (background `#0c0c0c`, ANSI colores ricos).
+- [x] Font `Cascadia Code`, fallback `Consolas`.
+- [x] Letter-spacing/line-height razonables.
+- [x] Cursor block parpadeante.
 
 ### 1.C Quality of life
-- [ ] Scrollback 10 000 líneas.
-- [ ] `Ctrl+Shift+C` copiar selección (sin selección → SIGINT como bash).
-- [ ] `Ctrl+Shift+V` pegar.
-- [ ] `Ctrl+Shift+F` abre search overlay.
-- [ ] `Ctrl+L` clear (envía `clear\n` al shell).
-- [ ] `Ctrl++` / `Ctrl+-` zoom font in/out.
-- [ ] Bracketed paste mode habilitado.
-- [ ] Selección con triple-click para línea completa.
+- [x] Scrollback 10 000 líneas → ahora ilimitado por default (Fase 4).
+- [x] `Ctrl+Shift+C` copiar selección.
+- [x] `Ctrl+Shift+V` pegar.
+- [x] `Ctrl+Shift+F` abre search overlay.
+- [x] `Ctrl+L` clear.
+- [x] `Ctrl++` / `Ctrl+-` zoom font in/out.
+- [x] Bracketed paste mode habilitado.
+- [x] Selección con triple-click para línea completa.
 
 ---
 
-## Fase 2 — Perfiles desde settings.json de wt (ESTA SESIÓN)
+## Fase 2 — Perfiles desde settings.json de wt  ✅
 
 ### 2.A Resolución de commandline por perfil
-- [ ] Extender `WtProfileSource` para leer también `commandline`, `source`, `startingDirectory`.
-- [ ] Mapear `source: "Windows.Terminal.Wsl"` → `wsl.exe -d <name>`.
-- [ ] Mapear perfiles incorporados sin commandline (PowerShell/cmd) → resolverlos por nombre.
-- [ ] Filtrar `Azure Cloud Shell` (requiere auth, no soportable).
-- [ ] Devolver `ShellCommandLine` listo para pasar a `ConPtyService.Start`.
+- [x] Extender `WtProfileSource` para leer también `commandline`, `source`, `startingDirectory`.
+- [x] Mapear `source: "Windows.Terminal.Wsl"` → `wsl.exe -d <name>`.
+- [x] Mapear perfiles incorporados sin commandline (PowerShell/cmd) → resolverlos por nombre.
+- [x] Filtrar `Azure Cloud Shell` (requiere auth, no soportable).
+- [x] Devolver `ShellCommandLine` listo para pasar a `ConPtyService.Start`.
 
 ### 2.B UI selector activo
-- [ ] El dropdown `⌄` ahora SÍ lanza perfiles (no estará `IsEnabled = false`).
-- [ ] Click en perfil → cierra ConPTY actual + arranca uno nuevo con el commandline del perfil.
-- [ ] Tab única refleja el perfil activo (ícono + nombre).
-- [ ] Default = perfil marcado `defaultProfile` en wt; fallback pwsh.
+- [x] El dropdown `⌄` lanza perfiles.
+- [x] Click en perfil → cierra ConPTY actual + arranca uno nuevo con el commandline del perfil.
+- [x] Tab única refleja el perfil activo (ícono + nombre).
+- [x] Default = perfil marcado `defaultProfile` en wt; fallback pwsh.
 
 ---
 
@@ -185,7 +185,12 @@ Pivotamos de embeber `wt.exe` (chrome no se podía ocultar, clase de ventana cam
 - [x] `MainWindow.SnapshotCurrentSessions` incluye Layout; restore via `_pendingLayouts` aplicado en `OnSessionAdded`.
 - [x] 2 tests nuevos: roundtrip JSON de leaf y branch. **174/174 tests verdes.**
 
-## Fase 15 — Backlog
+## Fase 15 — Fix definitivo de split + auditoría de plan  ✅
+- [x] **Bug crítico de splits**: `CoreWebView2Environment.CreateAsync` solo permite UN environment por proceso. Cada `TerminalPane.InitializeWebViewAsync` creaba uno propio → al hacer split, el segundo pane lanzaba `ArgumentException "WebView2 was already initialized with a different CoreWebView2Environment"` y quedaba en blanco. Fix: singleton `_sharedEnv` con `SemaphoreSlim` que se crea una vez y se reutiliza por todos los panes. Tanto split horizontal como vertical funcionan correctamente.
+- [x] **Atajos de split más robustos**: además de `Alt+Shift+=` / `Alt+Shift+-`, ahora también reconocen `Ctrl+Shift+D` / `Ctrl+Shift+E` (estilo wt) y detección por `ev.key` para layouts de teclado no-US.
+- [x] **Plan auditado**: marcadas Fases 1 y 2 como completadas (estaban con `[ ]` aunque las features siempre estuvieron implementadas).
+
+## Fase 16 — Backlog
 - Sincronizar settings vía GitHub Gist.
 - Soporte de SSH/PuTTY integrado (perfil con `ssh user@host`).
 - Animación entre cambios de tab.

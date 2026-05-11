@@ -263,13 +263,19 @@
       postToHost({ type: 'moveActiveBy', delta: 1 });
       return false;
     }
-    // Alt+Shift+= o Alt+Shift++ : split vertical (pane al lado)
-    if (ev.altKey && ev.shiftKey && (ev.code === 'Equal' || ev.code === 'NumpadAdd')) {
+    // Split vertical (pane al lado):
+    //   Alt+Shift+= / Alt+Shift++ / Ctrl+Shift+D (estilo Windows Terminal)
+    //   Acepta también ev.key === '+' para layouts no-US donde el code difiere.
+    if ((ev.altKey && ev.shiftKey && (ev.code === 'Equal' || ev.code === 'NumpadAdd' || ev.key === '+'))
+        || (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyD')) {
       postToHost({ type: 'splitVertical' });
       return false;
     }
-    // Alt+Shift+- : split horizontal (pane debajo)
-    if (ev.altKey && ev.shiftKey && (ev.code === 'Minus' || ev.code === 'NumpadSubtract')) {
+    // Split horizontal (pane debajo):
+    //   Alt+Shift+- / Ctrl+Shift+E (estilo Windows Terminal)
+    //   Acepta también ev.key === '-' o '_' (Shift+- en US).
+    if ((ev.altKey && ev.shiftKey && (ev.code === 'Minus' || ev.code === 'NumpadSubtract' || ev.key === '-' || ev.key === '_'))
+        || (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyE')) {
       postToHost({ type: 'splitHorizontal' });
       return false;
     }

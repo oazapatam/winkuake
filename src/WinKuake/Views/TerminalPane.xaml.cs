@@ -161,14 +161,36 @@ public partial class TerminalPane : UserControl
         catch (Exception ex) { CrashLogger.Log(ex); }
     }
 
+    /// <summary>
+    /// Environment compartido entre TODOS los panes del proceso. CoreWebView2
+    /// solo permite UN environment activo por proceso; intentar crear otro
+    /// lanza ArgumentException "WebView2 was already initialized with a
+    /// different CoreWebView2Environment", lo que dejaba el segundo pane de
+    /// un split en blanco.
+    /// </summary>
+    private static CoreWebView2Environment? _sharedEnv;
+    private static readonly System.Threading.SemaphoreSlim _envLock = new(1, 1);
+
+    private static async Task<CoreWebView2Environment> GetSharedEnvAsync()
+    {
+        if (_sharedEnv is not null) return _sharedEnv;
+        await _envLock.WaitAsync();
+        try
+        {
+            if (_sharedEnv is not null) return _sharedEnv;
+            var userDataFolder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "WinKuake", "WebView2");
+            Directory.CreateDirectory(userDataFolder);
+            _sharedEnv = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder);
+            return _sharedEnv;
+        }
+        finally { _envLock.Release(); }
+    }
+
     private async Task InitializeWebViewAsync()
     {
-        var userDataFolder = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "WinKuake", "WebView2");
-        Directory.CreateDirectory(userDataFolder);
-
-        var env = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder);
+        var env = await GetSharedEnvAsync();
         await WebView.EnsureCoreWebView2Async(env);
 
         var resourcesDir = ResolveResourcesDir();
