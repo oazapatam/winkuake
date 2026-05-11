@@ -221,7 +221,68 @@ Lanzados en worktrees aislados, archivos disjuntos. Cada agente verificó cada i
 - [x] `MainWindow.ShowTerminalContextMenu` materializa el spec a `ContextMenu` WPF, traduce client-coords del WebView2 a screen via `pane.PointToScreen()`, conecta cada `MenuItem.Click` al handler ya existente del atajo equivalente. Antes de abrir, hace `FocusPane(pane)` para que las acciones operen sobre el pane que recibió el click.
 - [x] 22 tests nuevos en `ContextMenuTests.cs` (builder puro 9 tests + regex sobre `terminal.html` 5 + regex sobre `TerminalPane.xaml.cs` 2 + theory de labels/shortcuts 8). **381/381 verdes**.
 
-## Fase 20 — Backlog
+## Fase 20 — Detección de terminales propia (independencia TOTAL de wt)
+
+**Motivación:** hoy WinKuake depende del `settings.json` de Windows Terminal para enumerar perfiles. Eso causa: duplicados (Ubuntu por wt + Ubuntu por detección WSL nativa), entradas "(no soportado)" no actionables (Azure Cloud Shell, perfiles wt sin commandline resoluble), y dependencia obligatoria de que el usuario tenga wt instalado y configurado.
+
+**Decisión del usuario (explícita):** la app **NO debe depender de wt para nada**. Sin importer, sin fallback, sin lectura del `settings.json`. Cero rastro. WinKuake descubre terminales por sí misma y el usuario gestiona la lista desde su propia UI.
+
+### 20.A — Detectores nativos (un servicio por familia)
+
+Cada detector implementa `IProfileDetector { IReadOnlyList<TerminalProfile> Detect(); }`. Funciones puras que solo miran filesystem / registry / `wsl.exe -l`. Resultado se mergea en un único `ProfileRegistry`. Los detectores **descartan en origen** todo perfil cuyo commandline no se pueda resolver — nunca generan entradas "(no soportado)".
+
+- [ ] `WindowsPowerShellDetector` — `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`. Siempre presente desde Win 7.
+- [ ] `PwshDetector` — `where.exe pwsh.exe`. Detecta PS 7+ instalado por MSI o Store. Múltiples instalaciones → múltiples perfiles con sufijo de versión.
+- [ ] `CmdDetector` — `%SystemRoot%\System32\cmd.exe`. Siempre presente.
+- [ ] `WslDetector` — reusa `WslService.ParseListVerbose` ya existente. Filtra `docker-desktop*`/`rancher-desktop*`.
+- [ ] `GitBashDetector` — busca `bash.exe` en `%ProgramFiles%\Git\bin`, `%LOCALAPPDATA%\Programs\Git\bin`, registry `HKLM\SOFTWARE\GitForWindows\InstallPath`.
+- [ ] `VsDeveloperDetector` — para cada VS detectado vía `vswhere.exe` (en `%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\`), produce 2 perfiles: Developer Command Prompt (`cmd.exe /k "...\VsDevCmd.bat"`) y Developer PowerShell (`pwsh.exe -NoExit -Command "...\Launch-VsDevShell.ps1"`).
+- [ ] `MsysCygwinDetector` (opcional, fase futura) — detecta MSYS2/Cygwin si `bash.exe` está en `C:\msys64\usr\bin\` o `C:\cygwin64\bin\`.
+
+### 20.B — Modelo de datos persistido
+
+Extender `AppSettings`:
+- [ ] `List<UserProfile> UserProfiles` — perfiles editables por el usuario (auto-detectados + custom). Cada uno con: `Id` (Guid string), `Name`, `CommandLine`, `StartingDirectory?`, `IconGlyph?`, `Source` (enum: `Detected` / `Custom`), `Hidden` (bool — usuario lo ocultó del menú sin borrarlo).
+- [ ] `string? DefaultProfileId` — Guid del perfil default elegido por el usuario. Null = heurística (pwsh > powershell > cmd).
+
+**No** hay campo de migración desde wt. Si `UserProfiles` está vacío, se llena ejecutando los detectores (no leyendo wt).
+
+### 20.C — UI nueva en SettingsWindow → tab "Perfiles"
+
+- [ ] DataGrid editable: columnas Default (radio), Visible (checkbox), Icono, Nombre, Commandline, Cwd, Origen (Detected/Custom). Eliminar fila con tecla Delete.
+- [ ] Botón **Detectar terminales** → corre todos los detectores, hace diff contra `UserProfiles`, agrega los nuevos. Toast "N nuevos perfiles detectados" o "Sin cambios".
+- [ ] Botón **Añadir manual** → diálogo con Name + CommandLine + Cwd opcional + IconGlyph opcional. Source = Custom.
+- [ ] Botón **Restablecer defaults** → borra `UserProfiles` y `DefaultProfileId`, fuerza re-detección al cerrar.
+- [ ] El radio "Default" actualiza `DefaultProfileId` y desmarca el resto.
+
+**No** hay botón "Importar de Windows Terminal".
+
+### 20.D — Refactor del código actual
+
+- [ ] **Eliminar** `WtProfileSource.cs` por completo y todos sus tests (`WtProfileSourceTests.cs`, `WtProfileSourceAuditTests.cs`).
+- [ ] **Eliminar** `MainWindow.StartWatchingWtSettings` y el `FileSystemWatcher` sobre el `settings.json` de wt.
+- [ ] Nueva clase `ProfileRegistry` con: `LoadAll(AppSettings) → IReadOnlyList<TerminalProfile>` — devuelve `UserProfiles` filtrados por `Hidden=false`. Si `UserProfiles` vacío: ejecuta detectores, persiste y devuelve.
+- [ ] `MainWindow.LoadProfiles` usa `ProfileRegistry.LoadAll` en lugar de `WtProfileSource.LoadCombined`.
+- [ ] `MainWindow.DefaultProfile()` respeta `_settings.DefaultProfileId`; fallback a heurística (primer pwsh > primer powershell > primer cmd > primer perfil de la lista).
+- [ ] El menú dropdown ⌄ deja de mostrar entradas "(no soportado)" — `Hidden=true` se filtra antes de renderizar; los detectores nunca generan perfiles no resolubles.
+
+### 20.E — Migración para usuarios actuales
+
+Al primer arranque post-upgrade, si el usuario ya tiene `settings.json` con perfiles wt heredados pero NO tiene `UserProfiles` (porque es una versión nueva sin ese campo), simplemente se ejecutan los detectores y se le presenta la lista nueva. **No hay backfill desde wt** — si el usuario tenía perfiles custom configurados en wt, deberá agregarlos manualmente en la nueva UI. Esto es aceptable porque los perfiles wt típicos (PowerShell, cmd, WSL distros, Git Bash) los redescubre la app sin intervención.
+
+### 20.F — TDD
+
+- [ ] Cada detector tiene su test (`PwshDetectorTests`, etc.) con un filesystem fake o `where.exe` mockeado por path lookup.
+- [ ] `ProfileRegistry` tests: load vacío → detecta + persiste; load con datos → respeta el orden y los `Hidden`; default fallback heurístico.
+- [ ] UI tab "Perfiles" — tests del builder de items (similar a `TerminalContextMenuBuilder`): orden, default radio mutuamente excluyente, hide checkbox.
+- [ ] Test de regresión: `grep` sobre la solución entera no encuentra `WtProfileSource`, `Microsoft.WindowsTerminal_8wekyb3d8bbwe`, ni lectura del `settings.json` de wt en runtime.
+
+### Limitaciones aceptadas
+- No respetamos colorScheme/font/icon custom de wt — WinKuake tiene los suyos vía `ProfileIconHelper`.
+- No detectamos shells exóticos (nushell, xonsh, fish nativo) — el usuario los agrega como Custom.
+- Usuarios que dependían de perfiles wt custom (ej. SSH a server X con flags raros) deben recrearlos en la UI nueva. La fase 21 backlog "SSH integrado" cubre el caso SSH específicamente.
+
+## Fase 21 — Backlog
 - Sincronizar settings vía GitHub Gist.
 - Soporte de SSH/PuTTY integrado (perfil con `ssh user@host`).
 - Animación entre cambios de tab.
