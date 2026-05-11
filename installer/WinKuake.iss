@@ -34,7 +34,11 @@ DisableDirPage=auto
 LicenseFile=
 OutputDir=Output
 OutputBaseFilename=WinKuake-Setup-{#AppVersion}
-SetupIconFile=
+SetupIconFile=branding\winkuake.ico
+WizardImageFile=branding\wizard-image.bmp
+WizardSmallImageFile=branding\wizard-small.bmp
+WizardImageStretch=no
+WizardImageBackColor=$00161B0E
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
@@ -46,7 +50,7 @@ UninstallDisplayName={#AppName}
 UninstallDisplayIcon={app}\{#AppExeName}
 VersionInfoVersion={#AppVersion}
 VersionInfoCompany={#AppPublisher}
-VersionInfoDescription=Drop-down terminal estilo Yakuake para Windows
+VersionInfoDescription=Modern drop-down terminal for Windows
 ChangesAssociations=no
 ShowLanguageDialog=auto
 
@@ -83,19 +87,5 @@ Filename: "{app}\{#AppExeName}"; Description: "Iniciar {#AppName} ahora"; \
 ; reinstalaciones conserven la configuración del usuario.
 ; Type: filesandordirs; Name: "{userappdata}\WinKuake"
 
-[Code]
-function InitializeSetup(): Boolean;
-begin
-  Result := True;
-  // Aviso si Windows Terminal no está presente en la ruta esperada.
-  if not FileExists(ExpandConstant('{localappdata}\Microsoft\WindowsApps\wt.exe')) then
-  begin
-    if MsgBox(
-       'No se detectó Windows Terminal (wt.exe) en este equipo.' + #13#10#13#10 +
-       'WinKuake lo necesita para funcionar. Instálalo gratis desde Microsoft Store ' +
-       '(busca "Windows Terminal") y vuelve a ejecutar este instalador.' + #13#10#13#10 +
-       '¿Continuar de todas formas?',
-       mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDNO then
-      Result := False;
-  end;
-end;
+; Sin código Pascal extra: WinKuake es self-contained y no depende de
+; Windows Terminal ni de runtime externo (todo va en el .exe publicado).

@@ -18,6 +18,7 @@
     <AssemblyTitle>WinKuake — Drop-down Terminal</AssemblyTitle>
     <Copyright>Copyright © 2026</Copyright>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Resources\winkuake.ico</ApplicationIcon>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
