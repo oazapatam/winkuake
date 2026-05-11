@@ -59,18 +59,16 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon";  Description: "{cm:CreateDesktopIcon}";  GroupDescription: "{cm:AdditionalIcons}"
-Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 6.1
-Name: "startup"; Description: "Iniciar WinKuake al iniciar sesión en Windows"; GroupDescription: "Inicio:"; Flags: unchecked
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+Name: "startup"; Description: "Launch WinKuake at Windows sign-in"; GroupDescription: "Startup:"; Flags: unchecked
 
 [Files]
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\{#AppName}";        Filename: "{app}\{#AppExeName}"
-Name: "{group}\Desinstalar {#AppName}"; Filename: "{uninstallexe}"
-Name: "{commondesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
-Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: quicklaunchicon
+Name: "{group}\{#AppName}";              Filename: "{app}\{#AppExeName}"
+Name: "{group}\Uninstall {#AppName}";    Filename: "{uninstallexe}"
+Name: "{commondesktop}\{#AppName}";      Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
 
 [Registry]
 ; Inicio con Windows (HKCU\...\Run) — solo si el usuario lo eligió.
@@ -79,7 +77,7 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
     Tasks: startup; Flags: uninsdeletevalue
 
 [Run]
-Filename: "{app}\{#AppExeName}"; Description: "Iniciar {#AppName} ahora"; \
+Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName} now"; \
     Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
