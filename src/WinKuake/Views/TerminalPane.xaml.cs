@@ -43,6 +43,7 @@ public partial class TerminalPane : UserControl
     public event Action<string>? OpenFileRequested;
     public event Action? OpenPaletteRequested;
     public event Action? ToggleBroadcastRequested;
+    public event Action? OpenGlobalFindRequested;
     public event Action<string>? InputReceived;
 
     /// <summary>Escribe texto directamente al PTY (uso: paleta de comandos).</summary>
@@ -60,6 +61,41 @@ public partial class TerminalPane : UserControl
             return JsonSerializer.Deserialize<string>(raw);
         }
         catch (Exception ex) { CrashLogger.Log(ex); return null; }
+    }
+
+    /// <summary>
+    /// Recolecta todas las líneas del buffer xterm (visible + scrollback) como
+    /// strings, en orden absoluto. Pensado para alimentar la búsqueda global.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> GetBufferLinesAsync()
+    {
+        if (WebView.CoreWebView2 is null) return Array.Empty<string>();
+        try
+        {
+            const string js =
+                "(()=>{const b=term.buffer.active;const r=[];" +
+                "for(let i=0;i<b.length;i++){const l=b.getLine(i);" +
+                "r.push(l?l.translateToString(true):'');}return JSON.stringify(r);})()";
+            var raw = await WebView.CoreWebView2.ExecuteScriptAsync(js);
+            if (string.IsNullOrEmpty(raw) || raw == "null") return Array.Empty<string>();
+            // ExecuteScriptAsync envuelve cualquier string como JSON-string;
+            // el inner es a su vez JSON con el array. Doble decode.
+            var inner = JsonSerializer.Deserialize<string>(raw);
+            if (string.IsNullOrEmpty(inner)) return Array.Empty<string>();
+            var arr = JsonSerializer.Deserialize<string[]>(inner);
+            return arr ?? Array.Empty<string>();
+        }
+        catch (Exception ex) { CrashLogger.Log(ex); return Array.Empty<string>(); }
+    }
+
+    /// <summary>Hace scroll y selecciona la línea indicada (absoluta en el buffer).</summary>
+    public void ScrollToLine(int line)
+    {
+        if (WebView.CoreWebView2 is null) return;
+        // term.scrollToLine espera la posición absoluta en el buffer; selectLines
+        // pinta el highlight para que el usuario vea dónde quedó.
+        var payload = $"{{\"type\":\"scrollToLine\",\"line\":{line}}}";
+        WebView.CoreWebView2.PostWebMessageAsJson(payload);
     }
 
     public TerminalPane()
@@ -259,6 +295,9 @@ public partial class TerminalPane : UserControl
                 case "toggleBroadcast":
                     ToggleBroadcastRequested?.Invoke();
                     break;
+                case "openGlobalFind":
+                    OpenGlobalFindRequested?.Invoke();
+                    break;
             }
         }
         catch (Exception ex) { CrashLogger.Log(ex); }
@@ -277,7 +316,7 @@ public partial class TerminalPane : UserControl
         long scrollback = s.ScrollbackLines == -1
             ? 9007199254740991L
             : Math.Max(100, s.ScrollbackLines);
-        var theme = TerminalTheme.FindOrDefault(s.TerminalThemeName).ToXtermJson();
+        var theme = TerminalTheme.ResolveCurrent(s).ToXtermJson();
         var fontSize = Math.Clamp(s.TerminalFontSize, 8, 40);
         var payload = $"{{\"type\":\"config\",\"scrollback\":{scrollback},\"fontSize\":{fontSize},\"theme\":{theme}}}";
         WebView.CoreWebView2?.PostWebMessageAsJson(payload);

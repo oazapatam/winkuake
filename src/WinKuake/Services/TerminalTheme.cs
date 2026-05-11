@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using WinKuake.Models;
 
 namespace WinKuake.Services;
 
@@ -45,6 +46,32 @@ public sealed record TerminalTheme(
     }
 
     public static TerminalTheme FindOrDefault(string? name) => Find(name) ?? Default;
+
+    /// <summary>Construye un <see cref="TerminalTheme"/> a partir de un POCO custom.</summary>
+    public static TerminalTheme FromCustom(TerminalThemeColors c)
+    {
+        var name = string.IsNullOrWhiteSpace(c.Name) ? "Custom" : c.Name;
+        return new TerminalTheme(
+            name,
+            Background: c.Background, Foreground: c.Foreground, Cursor: c.Cursor,
+            Black: c.Black, Red: c.Red, Green: c.Green, Yellow: c.Yellow,
+            Blue: c.Blue, Magenta: c.Magenta, Cyan: c.Cyan, White: c.White,
+            BrightBlack: c.BrightBlack, BrightRed: c.BrightRed,
+            BrightGreen: c.BrightGreen, BrightYellow: c.BrightYellow,
+            BrightBlue: c.BrightBlue, BrightMagenta: c.BrightMagenta,
+            BrightCyan: c.BrightCyan, BrightWhite: c.BrightWhite);
+    }
+
+    /// <summary>
+    /// Resuelve el tema activo según settings: si el nombre es "Custom" y hay
+    /// paleta custom guardada, la usa; en cualquier otro caso cae a
+    /// <see cref="FindOrDefault"/>.
+    /// </summary>
+    public static TerminalTheme ResolveCurrent(AppSettings s) =>
+        string.Equals(s.TerminalThemeName, "Custom", StringComparison.OrdinalIgnoreCase)
+            && s.CustomTerminalTheme is not null
+            ? FromCustom(s.CustomTerminalTheme)
+            : FindOrDefault(s.TerminalThemeName);
 
     public static IReadOnlyList<TerminalTheme> All { get; } = new[]
     {

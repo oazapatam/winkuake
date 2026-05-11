@@ -37,7 +37,17 @@ public partial class TerminalControl : UserControl
     public event Action<string>? SaveBufferRequested;
     public event Action<string>? OpenFileRequested;
     public event Action? OpenPaletteRequested;
+    public event Action? OpenGlobalFindRequested;
     public event Action<bool>? BroadcastChanged;
+
+    /// <summary>Todos los panes del control (vivos), en orden de creación.</summary>
+    public IReadOnlyList<TerminalPane> AllPanes => _panes;
+
+    /// <summary>Hace pane activo desde fuera (búsqueda global → focus a resultado).</summary>
+    public void FocusPane(TerminalPane pane)
+    {
+        if (_panes.Contains(pane)) SetActivePane(pane);
+    }
 
     /// <summary>Cuando true, el input de cualquier pane se replica al resto.</summary>
     public bool BroadcastEnabled { get; private set; }
@@ -119,6 +129,7 @@ public partial class TerminalControl : UserControl
         pane.FocusPaneRequested       += FocusInDirection;
         pane.OpenPaletteRequested     += () => OpenPaletteRequested?.Invoke();
         pane.ToggleBroadcastRequested += ToggleBroadcast;
+        pane.OpenGlobalFindRequested  += () => OpenGlobalFindRequested?.Invoke();
         pane.InputReceived += text =>
         {
             if (!BroadcastEnabled) return;

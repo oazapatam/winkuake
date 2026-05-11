@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
@@ -46,9 +47,18 @@ public partial class SettingsWindow : Window
         TxtChromeBorder.Text = current.ChromeBorderHex;
         TxtAccent.Text       = current.AccentHex;
 
-        // Terminal: tema, fuente, scrollback.
-        CmbTheme.ItemsSource = TerminalTheme.All.Select(t => t.Name).ToArray();
-        CmbTheme.SelectedItem = TerminalTheme.FindOrDefault(current.TerminalThemeName).Name;
+        // Terminal: tema, fuente, scrollback. "Custom" se añade al final como pseudo-tema.
+        var themeNames = TerminalTheme.All.Select(t => t.Name).Append("Custom").ToArray();
+        CmbTheme.ItemsSource = themeNames;
+        CmbTheme.SelectedItem = string.Equals(current.TerminalThemeName, "Custom", StringComparison.OrdinalIgnoreCase)
+            ? "Custom"
+            : TerminalTheme.FindOrDefault(current.TerminalThemeName).Name;
+
+        LoadCustomThemeColors(current.CustomTerminalTheme ?? new TerminalThemeColors());
+        UpdateCustomSwatches();
+        UpdateCustomThemeVisibility();
+        CmbTheme.SelectionChanged += (_, _) => UpdateCustomThemeVisibility();
+        HookCustomThemeSwatchSync();
 
         SldFontSize.Value = Math.Clamp(current.TerminalFontSize, 8, 32);
         TxtFontSize.Text  = ((int)SldFontSize.Value).ToString(CultureInfo.InvariantCulture);
@@ -63,9 +73,20 @@ public partial class SettingsWindow : Window
         SelectScrollbackItem(current.ScrollbackLines);
 
         // Snippets: bind a ObservableCollection editable.
-        _snippetsView = new System.Collections.ObjectModel.ObservableCollection<UserSnippet>(
+        _snippetsView = new ObservableCollection<UserSnippet>(
             current.UserSnippets.Select(s => new UserSnippet { Name = s.Name, Command = s.Command }));
         SnippetsGrid.ItemsSource = _snippetsView;
+
+        // Atajos: una fila por acción del catálogo, con el gesto resuelto (custom o default).
+        _keybindingsView = new ObservableCollection<KeybindingRow>(
+            KeybindingService.All.Select(a => new KeybindingRow
+            {
+                Id = a.Id,
+                DisplayName = a.DisplayName,
+                Gesture = KeybindingService.GetGesture(current, a.Id),
+                DefaultGesture = a.DefaultGesture,
+            }));
+        KeybindingsGrid.ItemsSource = _keybindingsView;
 
         SyncBoxesFromSliders();
         UpdateSwatches();
@@ -87,7 +108,8 @@ public partial class SettingsWindow : Window
     }
 
     private bool _suppressSync;
-    private System.Collections.ObjectModel.ObservableCollection<UserSnippet> _snippetsView = new();
+    private ObservableCollection<UserSnippet> _snippetsView = new();
+    private ObservableCollection<KeybindingRow> _keybindingsView = new();
 
     private void SyncBoxesFromSliders()
     {
@@ -168,6 +190,20 @@ public partial class SettingsWindow : Window
         TerminalThemeName   = s.TerminalThemeName,
         TerminalFontSize    = s.TerminalFontSize,
         UserSnippets        = s.UserSnippets.Select(x => new UserSnippet { Name = x.Name, Command = x.Command }).ToList(),
+        CustomTerminalTheme = s.CustomTerminalTheme is null ? null : CloneCustomColors(s.CustomTerminalTheme),
+        CustomKeybindings   = new Dictionary<string, string>(s.CustomKeybindings),
+    };
+
+    private static TerminalThemeColors CloneCustomColors(TerminalThemeColors c) => new()
+    {
+        Name = c.Name,
+        Background = c.Background, Foreground = c.Foreground, Cursor = c.Cursor,
+        Black = c.Black, Red = c.Red, Green = c.Green, Yellow = c.Yellow,
+        Blue = c.Blue, Magenta = c.Magenta, Cyan = c.Cyan, White = c.White,
+        BrightBlack = c.BrightBlack, BrightRed = c.BrightRed,
+        BrightGreen = c.BrightGreen, BrightYellow = c.BrightYellow,
+        BrightBlue = c.BrightBlue, BrightMagenta = c.BrightMagenta,
+        BrightCyan = c.BrightCyan, BrightWhite = c.BrightWhite,
     };
 
     private void SelectScrollbackItem(int value)
@@ -229,8 +265,122 @@ public partial class SettingsWindow : Window
             .Select(s => new UserSnippet { Name = s.Name.Trim(), Command = s.Command.Trim() })
             .ToList();
 
+        // Paleta custom: solo persistimos si hay algo que vale la pena guardar.
+        Result.CustomTerminalTheme = ReadCustomColorsFromUi();
+
+        // Atajos: persistimos solo los que difieren del default. Vacío = restaurar default.
+        var customs = new Dictionary<string, string>();
+        foreach (var row in _keybindingsView)
+        {
+            var g = (row.Gesture ?? "").Trim();
+            if (!string.IsNullOrWhiteSpace(g) && !string.Equals(g, row.DefaultGesture, StringComparison.OrdinalIgnoreCase))
+                customs[row.Id] = g;
+        }
+        Result.CustomKeybindings = customs;
+
         DialogResult = true;
         Close();
+    }
+
+    private void UpdateCustomThemeVisibility()
+    {
+        var isCustom = string.Equals(CmbTheme.SelectedItem?.ToString(), "Custom", StringComparison.OrdinalIgnoreCase);
+        CustomThemePanel.Visibility = isCustom ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void LoadCustomThemeColors(TerminalThemeColors c)
+    {
+        TxtCtName.Text     = c.Name;
+        TxtCtBg.Text       = c.Background;
+        TxtCtFg.Text       = c.Foreground;
+        TxtCtCursor.Text   = c.Cursor;
+        TxtCtBlack.Text    = c.Black;
+        TxtCtRed.Text      = c.Red;
+        TxtCtGreen.Text    = c.Green;
+        TxtCtYellow.Text   = c.Yellow;
+        TxtCtBlue.Text     = c.Blue;
+        TxtCtMagenta.Text  = c.Magenta;
+        TxtCtCyan.Text     = c.Cyan;
+        TxtCtWhite.Text    = c.White;
+        TxtCtBBlack.Text   = c.BrightBlack;
+        TxtCtBRed.Text     = c.BrightRed;
+        TxtCtBGreen.Text   = c.BrightGreen;
+        TxtCtBYellow.Text  = c.BrightYellow;
+        TxtCtBBlue.Text    = c.BrightBlue;
+        TxtCtBMagenta.Text = c.BrightMagenta;
+        TxtCtBCyan.Text    = c.BrightCyan;
+        TxtCtBWhite.Text   = c.BrightWhite;
+    }
+
+    private TerminalThemeColors ReadCustomColorsFromUi() => new()
+    {
+        Name          = string.IsNullOrWhiteSpace(TxtCtName.Text) ? "Custom" : TxtCtName.Text.Trim(),
+        Background    = TxtCtBg.Text,
+        Foreground    = TxtCtFg.Text,
+        Cursor        = TxtCtCursor.Text,
+        Black         = TxtCtBlack.Text,
+        Red           = TxtCtRed.Text,
+        Green         = TxtCtGreen.Text,
+        Yellow        = TxtCtYellow.Text,
+        Blue          = TxtCtBlue.Text,
+        Magenta       = TxtCtMagenta.Text,
+        Cyan          = TxtCtCyan.Text,
+        White         = TxtCtWhite.Text,
+        BrightBlack   = TxtCtBBlack.Text,
+        BrightRed     = TxtCtBRed.Text,
+        BrightGreen   = TxtCtBGreen.Text,
+        BrightYellow  = TxtCtBYellow.Text,
+        BrightBlue    = TxtCtBBlue.Text,
+        BrightMagenta = TxtCtBMagenta.Text,
+        BrightCyan    = TxtCtBCyan.Text,
+        BrightWhite   = TxtCtBWhite.Text,
+    };
+
+    private void HookCustomThemeSwatchSync()
+    {
+        // Cada TextBox del editor refresca su swatch al cambiar.
+        TxtCtBg.TextChanged       += (_, _) => SwCtBg.Background       = TryBrush(TxtCtBg.Text);
+        TxtCtFg.TextChanged       += (_, _) => SwCtFg.Background       = TryBrush(TxtCtFg.Text);
+        TxtCtCursor.TextChanged   += (_, _) => SwCtCursor.Background   = TryBrush(TxtCtCursor.Text);
+        TxtCtBlack.TextChanged    += (_, _) => SwCtBlack.Background    = TryBrush(TxtCtBlack.Text);
+        TxtCtRed.TextChanged      += (_, _) => SwCtRed.Background      = TryBrush(TxtCtRed.Text);
+        TxtCtGreen.TextChanged    += (_, _) => SwCtGreen.Background    = TryBrush(TxtCtGreen.Text);
+        TxtCtYellow.TextChanged   += (_, _) => SwCtYellow.Background   = TryBrush(TxtCtYellow.Text);
+        TxtCtBlue.TextChanged     += (_, _) => SwCtBlue.Background     = TryBrush(TxtCtBlue.Text);
+        TxtCtMagenta.TextChanged  += (_, _) => SwCtMagenta.Background  = TryBrush(TxtCtMagenta.Text);
+        TxtCtCyan.TextChanged     += (_, _) => SwCtCyan.Background     = TryBrush(TxtCtCyan.Text);
+        TxtCtWhite.TextChanged    += (_, _) => SwCtWhite.Background    = TryBrush(TxtCtWhite.Text);
+        TxtCtBBlack.TextChanged   += (_, _) => SwCtBBlack.Background   = TryBrush(TxtCtBBlack.Text);
+        TxtCtBRed.TextChanged     += (_, _) => SwCtBRed.Background     = TryBrush(TxtCtBRed.Text);
+        TxtCtBGreen.TextChanged   += (_, _) => SwCtBGreen.Background   = TryBrush(TxtCtBGreen.Text);
+        TxtCtBYellow.TextChanged  += (_, _) => SwCtBYellow.Background  = TryBrush(TxtCtBYellow.Text);
+        TxtCtBBlue.TextChanged    += (_, _) => SwCtBBlue.Background    = TryBrush(TxtCtBBlue.Text);
+        TxtCtBMagenta.TextChanged += (_, _) => SwCtBMagenta.Background = TryBrush(TxtCtBMagenta.Text);
+        TxtCtBCyan.TextChanged    += (_, _) => SwCtBCyan.Background    = TryBrush(TxtCtBCyan.Text);
+        TxtCtBWhite.TextChanged   += (_, _) => SwCtBWhite.Background   = TryBrush(TxtCtBWhite.Text);
+    }
+
+    private void UpdateCustomSwatches()
+    {
+        SwCtBg.Background       = TryBrush(TxtCtBg.Text);
+        SwCtFg.Background       = TryBrush(TxtCtFg.Text);
+        SwCtCursor.Background   = TryBrush(TxtCtCursor.Text);
+        SwCtBlack.Background    = TryBrush(TxtCtBlack.Text);
+        SwCtRed.Background      = TryBrush(TxtCtRed.Text);
+        SwCtGreen.Background    = TryBrush(TxtCtGreen.Text);
+        SwCtYellow.Background   = TryBrush(TxtCtYellow.Text);
+        SwCtBlue.Background     = TryBrush(TxtCtBlue.Text);
+        SwCtMagenta.Background  = TryBrush(TxtCtMagenta.Text);
+        SwCtCyan.Background     = TryBrush(TxtCtCyan.Text);
+        SwCtWhite.Background    = TryBrush(TxtCtWhite.Text);
+        SwCtBBlack.Background   = TryBrush(TxtCtBBlack.Text);
+        SwCtBRed.Background     = TryBrush(TxtCtBRed.Text);
+        SwCtBGreen.Background   = TryBrush(TxtCtBGreen.Text);
+        SwCtBYellow.Background  = TryBrush(TxtCtBYellow.Text);
+        SwCtBBlue.Background    = TryBrush(TxtCtBBlue.Text);
+        SwCtBMagenta.Background = TryBrush(TxtCtBMagenta.Text);
+        SwCtBCyan.Background    = TryBrush(TxtCtBCyan.Text);
+        SwCtBWhite.Background   = TryBrush(TxtCtBWhite.Text);
     }
 
     private static string NormalizeHex(string input, string fallback)
@@ -259,4 +409,13 @@ public partial class SettingsWindow : Window
         DialogResult = false;
         Close();
     }
+}
+
+/// <summary>Fila del DataGrid de atajos. Mantiene Id (no visible) y el gesto editable.</summary>
+public class KeybindingRow
+{
+    public string Id { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public string Gesture { get; set; } = "";
+    public string DefaultGesture { get; set; } = "";
 }

@@ -208,4 +208,96 @@ public class AppSettingsTests
         Assert.Equal("#1E1E1E", dst.ChromeBackgroundHex); // default preservado
         Assert.Equal(180, dst.AnimationMs);               // default preservado
     }
+
+    [Fact]
+    public void CustomTerminalTheme_DefaultsToNull()
+    {
+        var s = new AppSettings();
+        Assert.Null(s.CustomTerminalTheme);
+    }
+
+    [Fact]
+    public void TerminalThemeColors_Defaults_AreCustomAndBlack()
+    {
+        var c = new TerminalThemeColors();
+        Assert.Equal("Custom", c.Name);
+        Assert.Equal("#000000", c.Background);
+        Assert.Equal("#000000", c.Foreground);
+        Assert.Equal("#000000", c.Cursor);
+        Assert.Equal("#000000", c.Black);
+        Assert.Equal("#000000", c.Red);
+        Assert.Equal("#000000", c.Green);
+        Assert.Equal("#000000", c.Yellow);
+        Assert.Equal("#000000", c.Blue);
+        Assert.Equal("#000000", c.Magenta);
+        Assert.Equal("#000000", c.Cyan);
+        Assert.Equal("#000000", c.White);
+        Assert.Equal("#000000", c.BrightBlack);
+        Assert.Equal("#000000", c.BrightRed);
+        Assert.Equal("#000000", c.BrightGreen);
+        Assert.Equal("#000000", c.BrightYellow);
+        Assert.Equal("#000000", c.BrightBlue);
+        Assert.Equal("#000000", c.BrightMagenta);
+        Assert.Equal("#000000", c.BrightCyan);
+        Assert.Equal("#000000", c.BrightWhite);
+    }
+
+    [Fact]
+    public void CustomTerminalTheme_PersistsThroughJson()
+    {
+        var src = new AppSettings
+        {
+            TerminalThemeName = "Custom",
+            CustomTerminalTheme = new TerminalThemeColors
+            {
+                Name = "MiTema",
+                Background = "#111111",
+                Foreground = "#eeeeee",
+                Cursor = "#ff00ff",
+                Black = "#010101", Red = "#020202", Green = "#030303", Yellow = "#040404",
+                Blue = "#050505", Magenta = "#060606", Cyan = "#070707", White = "#080808",
+                BrightBlack = "#0a0a0a", BrightRed = "#0b0b0b", BrightGreen = "#0c0c0c",
+                BrightYellow = "#0d0d0d", BrightBlue = "#0e0e0e", BrightMagenta = "#0f0f0f",
+                BrightCyan = "#101010", BrightWhite = "#111110",
+            }
+        };
+        var opts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var dst = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(src, opts), opts)!;
+
+        Assert.Equal("Custom", dst.TerminalThemeName);
+        Assert.NotNull(dst.CustomTerminalTheme);
+        Assert.Equal("MiTema", dst.CustomTerminalTheme!.Name);
+        Assert.Equal("#111111", dst.CustomTerminalTheme.Background);
+        Assert.Equal("#eeeeee", dst.CustomTerminalTheme.Foreground);
+        Assert.Equal("#ff00ff", dst.CustomTerminalTheme.Cursor);
+        Assert.Equal("#010101", dst.CustomTerminalTheme.Black);
+        Assert.Equal("#080808", dst.CustomTerminalTheme.White);
+        Assert.Equal("#111110", dst.CustomTerminalTheme.BrightWhite);
+    }
+
+    [Fact]
+    public void CustomKeybindings_DefaultsToEmpty()
+    {
+        var s = new AppSettings();
+        Assert.NotNull(s.CustomKeybindings);
+        Assert.Empty(s.CustomKeybindings);
+    }
+
+    [Fact]
+    public void CustomKeybindings_PersistThroughJson()
+    {
+        var src = new AppSettings
+        {
+            CustomKeybindings = new Dictionary<string, string>
+            {
+                ["Hotkey"] = "Ctrl+Alt+Space",
+                ["NewTab"] = "Ctrl+T",
+            }
+        };
+        var opts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var dst = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(src, opts), opts)!;
+        Assert.Equal(2, dst.CustomKeybindings.Count);
+        Assert.Equal("Ctrl+Alt+Space", dst.CustomKeybindings["Hotkey"]);
+        Assert.Equal("Ctrl+T", dst.CustomKeybindings["NewTab"]);
+    }
 }

@@ -235,6 +235,7 @@ public partial class MainWindow : Window
         ctrl.SaveBufferRequested   += SaveBufferToFile;
         ctrl.OpenFileRequested     += path => OpenFileFromTerminal(ctrl, path);
         ctrl.OpenPaletteRequested  += () => OpenCommandPalette(ctrl);
+        ctrl.OpenGlobalFindRequested += () => _ = OpenGlobalFindAsync();
         ctrl.BroadcastChanged      += _ =>
         {
             if (_sessions.Active?.Id == s.Id) UpdateStatusForActive();
@@ -585,6 +586,48 @@ public partial class MainWindow : Window
             var text = dlg.ExecuteAfterInject ? command + "\n" : command;
             ctrl.InjectInputToActive(text);
         }
+    }
+
+    private async System.Threading.Tasks.Task OpenGlobalFindAsync()
+    {
+        // Recolecta buffers de TODOS los panes de TODAS las sesiones. Hacemos
+        // las llamadas en paralelo: cada GetBufferLinesAsync rebota al CoreWebView2
+        // y nada gana serializar.
+        var sources = new List<GlobalFindSource>();
+        var fetches = new List<(TerminalSession s, TerminalPane p, int idx,
+            System.Threading.Tasks.Task<IReadOnlyList<string>> task)>();
+        foreach (var s in _sessions.Sessions)
+        {
+            if (!_controls.TryGetValue(s.Id, out var ctrl)) continue;
+            var panes = ctrl.AllPanes;
+            for (int i = 0; i < panes.Count; i++)
+                fetches.Add((s, panes[i], i, panes[i].GetBufferLinesAsync()));
+        }
+        try
+        {
+            await System.Threading.Tasks.Task.WhenAll(fetches.ConvertAll(f => f.task));
+        }
+        catch (Exception ex) { CrashLogger.Log(ex); }
+
+        foreach (var (s, _, idx, task) in fetches)
+        {
+            var lines = task.IsCompletedSuccessfully ? task.Result : (IReadOnlyList<string>)Array.Empty<string>();
+            sources.Add(new GlobalFindSource(s.Id, s.Label, idx, lines));
+        }
+
+        var dlg = new FindGlobalWindow(sources) { Owner = this };
+        if (dlg.ShowDialog() != true || dlg.SelectedResult is not { } pick) return;
+
+        if (!_controls.TryGetValue(pick.SessionId, out var targetCtrl)) return;
+        _sessions.SetActive(pick.SessionId);
+
+        // El pane está identificado por índice en AllPanes (mismo orden que
+        // se usó al recolectar).
+        var allPanes = targetCtrl.AllPanes;
+        if (pick.PaneIndex < 0 || pick.PaneIndex >= allPanes.Count) return;
+        var pane = allPanes[pick.PaneIndex];
+        targetCtrl.FocusPane(pane);
+        pane.ScrollToLine(pick.LineNumber);
     }
 
     private void OpenFileFromTerminal(TerminalControl ctrl, string path)

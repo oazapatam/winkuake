@@ -117,6 +117,132 @@
                         <ComboBox x:Name="CmbTheme" Width="220" HorizontalAlignment="Left"
                                   Margin="0,0,0,12" />
 
+                        <!-- Editor de paleta custom: solo visible cuando el tema seleccionado es "Custom". -->
+                        <Border x:Name="CustomThemePanel" Visibility="Collapsed"
+                                BorderBrush="{DynamicResource ChromeBorder}" BorderThickness="1"
+                                Padding="10" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Personalizar este tema" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                <TextBlock Text="Hex #RRGGBB para cada color del terminal."
+                                           FontSize="11" Foreground="#9A9A9A" Margin="0,0,0,8" />
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="32" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0"  Grid.Column="0" Text="Nombre"          VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Row="0"  Grid.Column="1" x:Name="TxtCtName"     Margin="0,2" />
+
+                                    <TextBlock Grid.Row="1"  Grid.Column="0" Text="Background"      VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Row="1"  Grid.Column="1" x:Name="TxtCtBg"       Margin="0,2" />
+                                    <Border   Grid.Row="1"  Grid.Column="2" x:Name="SwCtBg"       Margin="6,2,0,2" BorderThickness="1" BorderBrush="{DynamicResource ChromeBorder}" />
+
+                                    <TextBlock Grid.Row="2"  Grid.Column="0" Text="Foreground"      VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Row="2"  Grid.Column="1" x:Name="TxtCtFg"       Margin="0,2" />
+                                    <Border   Grid.Row="2"  Grid.Column="2" x:Name="SwCtFg"       Margin="6,2,0,2" BorderThickness="1" BorderBrush="{DynamicResource ChromeBorder}" />
+
+                                    <TextBlock Grid.Row="3"  Grid.Column="0" Text="Cursor"          VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Row="3"  Grid.Column="1" x:Name="TxtCtCursor"   Margin="0,2" />
+                                    <Border   Grid.Row="3"  Grid.Column="2" x:Name="SwCtCursor"   Margin="6,2,0,2" BorderThickness="1" BorderBrush="{DynamicResource ChromeBorder}" />
+
+                                    <TextBlock Grid.Row="4"  Grid.Column="0" Text="Black"           VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Row="4"  Grid.Column="1" x:Name="TxtCtBlack"    Margin="0,2" />
+                                    <Border   Grid.Row="4"  Grid.Column="2" x:Name="SwCtBlack"    Margin="6,2,0,2" BorderThickness="1" BorderBrush="{DynamicResource ChromeBorder}" />
+
+                                    <TextBlock Grid.Row="5"  Grid.Column="0" Text="Red"             VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Row="5"  Grid.Column="1" x:Name="TxtCtRed"      Margin="0,2" />
+                                    <Border   Grid.Row="5"  Grid.Column="2" x:Name="SwCtRed"      Margin="6,2,0,2" BorderThickness="1" BorderBrush="{DynamicResource ChromeBorder}" />
+
+                                    <TextBlock Grid.Row="6"  Grid.Column="0" Text="Green"           VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Row="6"  Grid.Column="1" x:Name="TxtCtGreen"    Margin="0,2" />
+                                    <Border   Grid.Row="6"  Grid.Column="2" x:Name="SwCtGreen"    Margin="6,2,0,2" BorderThickness="1" BorderBrush="{DynamicResource ChromeBorder}" />
+
+                                    <TextBlock Grid.Row="7"  Grid.Column="0" Text="Yellow"          VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Row="7"  Grid.Column="1" x:Name="TxtCtYellow"   Margin="0,2" />
+                                    <Border   Grid.Row="7"  Grid.Column="2" x:Name="SwCtYellow"   Margin="6,2,0,2" BorderThickness="1" BorderBrush="{DynamicResource ChromeBorder}" />
+
+                                    <TextBlock Grid.Row="8"  Grid.Column="0" Text="Blue"            VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Row="8"  Grid.Column="1" x:Name="TxtCtBlue"     Margin="0,2" />
+                                    <Border   Grid.Row="8"  Grid.Column="2" x:Name="SwCtBlue"     Margin="6,2,0,2" BorderThickness="1" BorderBrush="{DynamicResource ChromeBorder}" />
+
+                                    <TextBlock Grid.Row="9"  Grid.Column="0" Text="Magenta"         VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Row="9"  Grid.Column="1" x:Name="TxtCtMagenta"  Margin="0,2" />
+                                    <Border   Grid.Row="9"  Grid.Column="2" x:Name="SwCtMagenta"  Margin="6,2,0,2" BorderThickness="1" BorderBrush="{DynamicResource ChromeBorder}" />
+
+                                    <TextBlock Grid.Row="10" Grid.Column="0" Text="Cyan"            VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Row="10" Grid.Column="1" x:Name="TxtCtCyan"     Margin="0,2" />
+                                    <Border   Grid.Row="10" Grid.Column="2" x:Name="SwCtCyan"     Margin="6,2,0,2" BorderThickness="1" BorderBrush="{DynamicResource ChromeBorder}" />
+
+                                    <TextBlock Grid.Row="11" Grid.Column="0" Text="White"           VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Row="11" Grid.Column="1" x:Name="TxtCtWhite"    Margin="0,2" />
+                                    <Border   Grid.Row="11" Grid.Column="2" x:Name="SwCtWhite"    Margin="6,2,0,2" BorderThickness="1" BorderBrush="{DynamicResource ChromeBorder}" />
+
+                                    <TextBlock Grid.Row="12" Grid.Column="0" Text="Bright Black"    VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Row="12" Grid.Column="1" x:Name="TxtCtBBlack"   Margin="0,2" />
+                                    <Border   Grid.Row="12" Grid.Column="2" x:Name="SwCtBBlack"   Margin="6,2,0,2" BorderThickness="1" BorderBrush="{DynamicResource ChromeBorder}" />
+
+                                    <TextBlock Grid.Row="13" Grid.Column="0" Text="Bright Red"      VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Row="13" Grid.Column="1" x:Name="TxtCtBRed"     Margin="0,2" />
+                                    <Border   Grid.Row="13" Grid.Column="2" x:Name="SwCtBRed"     Margin="6,2,0,2" BorderThickness="1" BorderBrush="{DynamicResource ChromeBorder}" />
+
+                                    <TextBlock Grid.Row="14" Grid.Column="0" Text="Bright Green"    VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Row="14" Grid.Column="1" x:Name="TxtCtBGreen"   Margin="0,2" />
+                                    <Border   Grid.Row="14" Grid.Column="2" x:Name="SwCtBGreen"   Margin="6,2,0,2" BorderThickness="1" BorderBrush="{DynamicResource ChromeBorder}" />
+
+                                    <TextBlock Grid.Row="15" Grid.Column="0" Text="Bright Yellow"   VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Row="15" Grid.Column="1" x:Name="TxtCtBYellow"  Margin="0,2" />
+                                    <Border   Grid.Row="15" Grid.Column="2" x:Name="SwCtBYellow"  Margin="6,2,0,2" BorderThickness="1" BorderBrush="{DynamicResource ChromeBorder}" />
+
+                                    <TextBlock Grid.Row="16" Grid.Column="0" Text="Bright Blue"     VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Row="16" Grid.Column="1" x:Name="TxtCtBBlue"    Margin="0,2" />
+                                    <Border   Grid.Row="16" Grid.Column="2" x:Name="SwCtBBlue"    Margin="6,2,0,2" BorderThickness="1" BorderBrush="{DynamicResource ChromeBorder}" />
+
+                                    <TextBlock Grid.Row="17" Grid.Column="0" Text="Bright Magenta"  VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Row="17" Grid.Column="1" x:Name="TxtCtBMagenta" Margin="0,2" />
+                                    <Border   Grid.Row="17" Grid.Column="2" x:Name="SwCtBMagenta" Margin="6,2,0,2" BorderThickness="1" BorderBrush="{DynamicResource ChromeBorder}" />
+
+                                    <TextBlock Grid.Row="18" Grid.Column="0" Text="Bright Cyan"     VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Row="18" Grid.Column="1" x:Name="TxtCtBCyan"    Margin="0,2" />
+                                    <Border   Grid.Row="18" Grid.Column="2" x:Name="SwCtBCyan"    Margin="6,2,0,2" BorderThickness="1" BorderBrush="{DynamicResource ChromeBorder}" />
+                                </Grid>
+
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="32" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Bright White"    VerticalAlignment="Center" Margin="0,2" />
+                                    <TextBox  Grid.Column="1" x:Name="TxtCtBWhite"   Margin="0,2" />
+                                    <Border   Grid.Column="2" x:Name="SwCtBWhite"   Margin="6,2,0,2" BorderThickness="1" BorderBrush="{DynamicResource ChromeBorder}" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
                         <TextBlock Text="Tamaño de fuente (pt)" FontWeight="SemiBold" Margin="0,0,0,4" />
                         <Grid Margin="0,0,0,12">
                             <Grid.ColumnDefinitions>
@@ -143,6 +269,42 @@
                         </ComboBox>
                     </StackPanel>
                 </ScrollViewer>
+            </TabItem>
+
+            <!-- =================== ATAJOS =================== -->
+            <TabItem Header="Atajos">
+                <Grid Margin="14">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Margin="0,0,0,8"
+                               Text="Atajos personalizados para acciones de WinKuake. Formato: 'Ctrl+Shift+T', 'Alt+F4', etc." />
+
+                    <DataGrid Grid.Row="1"
+                              x:Name="KeybindingsGrid"
+                              AutoGenerateColumns="False"
+                              HeadersVisibility="Column"
+                              GridLinesVisibility="None"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              CanUserResizeRows="False"
+                              Background="#252526"
+                              Foreground="{DynamicResource ChromeForeground}"
+                              RowBackground="#252526"
+                              AlternatingRowBackground="#1f1f1f"
+                              BorderBrush="{DynamicResource ChromeBorder}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Acción" Binding="{Binding DisplayName}" Width="260" IsReadOnly="True" />
+                            <DataGridTextColumn Header="Atajo"  Binding="{Binding Gesture}"     Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <TextBlock Grid.Row="2" Margin="0,8,0,0" FontSize="11" Foreground="#9A9A9A"
+                               Text="Los cambios se aplicarán en una próxima versión." />
+                </Grid>
             </TabItem>
 
             <!-- =================== SNIPPETS =================== -->

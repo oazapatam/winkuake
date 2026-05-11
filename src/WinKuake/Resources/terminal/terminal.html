@@ -167,6 +167,15 @@
           term.options.theme = m.theme;
         try { fit.fit(); } catch {}
       }
+      else if (m && m.type === 'scrollToLine' && typeof m.line === 'number') {
+        // Búsqueda global: host pide saltar a línea concreta del buffer.
+        try {
+          // scrollToLine espera offset absoluto dentro del buffer; nuestro line
+          // ya es absoluto (0..buffer.length-1).
+          term.scrollToLine(m.line);
+          if (typeof term.selectLines === 'function') term.selectLines(m.line, m.line);
+        } catch {}
+      }
     });
   }
 
@@ -193,8 +202,14 @@
       }).catch(()=>{});
       return false;
     }
-    // Ctrl+Shift+F: abrir buscador
-    if (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyF') {
+    // Ctrl+Shift+Alt+F: búsqueda global multi-buffer (host la maneja).
+    // Importante: chequear antes que Ctrl+Shift+F porque comparte el modifier set.
+    if (ev.ctrlKey && ev.shiftKey && ev.altKey && ev.code === 'KeyF') {
+      postToHost({ type: 'openGlobalFind' });
+      return false;
+    }
+    // Ctrl+Shift+F: abrir buscador local del pane.
+    if (ev.ctrlKey && ev.shiftKey && !ev.altKey && ev.code === 'KeyF') {
       openSearch();
       return false;
     }

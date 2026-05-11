@@ -71,6 +71,46 @@ public class AppSettings
 
     /// <summary>Color de acento (pestaña activa, hover). Default = #0E7AB5.</summary>
     public string AccentHex { get; set; } = "#0E7AB5";
+
+    /// <summary>
+    /// Paleta custom del terminal. Solo se aplica cuando
+    /// <see cref="TerminalThemeName"/> == "Custom".
+    /// </summary>
+    public TerminalThemeColors? CustomTerminalTheme { get; set; }
+
+    /// <summary>
+    /// Atajos definidos por el usuario, mapeados como acción → gesto
+    /// (p.ej. "NewTab" → "Ctrl+Shift+T"). Aún no se aplican en runtime.
+    /// </summary>
+    public Dictionary<string, string> CustomKeybindings { get; set; } = new();
+}
+
+/// <summary>
+/// POCO con los 19 colores de una paleta xterm.js custom. Las claves se
+/// corresponden 1:1 con <see cref="WinKuake.Services.TerminalTheme"/>.
+/// </summary>
+public class TerminalThemeColors
+{
+    public string Name { get; set; } = "Custom";
+    public string Background { get; set; } = "#000000";
+    public string Foreground { get; set; } = "#000000";
+    public string Cursor { get; set; } = "#000000";
+    public string Black { get; set; } = "#000000";
+    public string Red { get; set; } = "#000000";
+    public string Green { get; set; } = "#000000";
+    public string Yellow { get; set; } = "#000000";
+    public string Blue { get; set; } = "#000000";
+    public string Magenta { get; set; } = "#000000";
+    public string Cyan { get; set; } = "#000000";
+    public string White { get; set; } = "#000000";
+    public string BrightBlack { get; set; } = "#000000";
+    public string BrightRed { get; set; } = "#000000";
+    public string BrightGreen { get; set; } = "#000000";
+    public string BrightYellow { get; set; } = "#000000";
+    public string BrightBlue { get; set; } = "#000000";
+    public string BrightMagenta { get; set; } = "#000000";
+    public string BrightCyan { get; set; } = "#000000";
+    public string BrightWhite { get; set; } = "#000000";
 }
 
 /// <summary>POCO serializable para snippets del usuario.</summary>

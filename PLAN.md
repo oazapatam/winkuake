@@ -169,15 +169,59 @@ Pivotamos de embeber `wt.exe` (chrome no se podía ocultar, clase de ventana cam
 - [x] **Argumento CLI `--cwd <path>`** (también `--cwd=<path>`): `App.ParseArg` extrae, `MainWindow.InitialCwd` lo aplica como starting directory de la primera tab si el path existe.
 - [x] **Tray icon**: `TrayIconService` usa `System.Windows.Forms.NotifyIcon` (con `UseWindowsForms=true` en csproj). Menú contextual: Mostrar/ocultar, Configuración, Salir. Doble-click toggle. `GlobalUsings.cs` resuelve los homónimos WPF↔Forms a favor de WPF.
 
-## Fase 13 — Backlog
-- Find global multi-buffer (overlay con resultados de TODOS los buffers, click → jump).
-- Editor de paleta de tema custom (color pickers + preview en vivo).
-- Persistencia de árbol de splits (serializar geometría dentro de cada PersistedTab).
-- Auto-update vía GitHub releases.
-- Configurar atajos custom (no solo hotkey global).
-- Sincronizar settings vía GitHub Gist (opcional).
+## Fase 13 — Paralelizado con 3 agentes  ✅
+- [x] **Agente A** — `UpdateService` chequea GitHub releases, compara versiones con `System.Version`, devuelve `UpdateInfo` con URL del .exe. 14 tests.
+- [x] **Agente B** — Búsqueda global multi-buffer: `Ctrl+Shift+Alt+F` abre `FindGlobalWindow` (overlay 700×500 con debounce 200 ms), recolecta buffers de TODOS los panes en paralelo vía `GetBufferLinesAsync`, click en resultado salta a la línea con `scrollToLine`. 10 tests en `GlobalFindService`.
+- [x] **Agente C** — Editor de paleta custom (19 colores hex con swatches, visible si tema == "Custom") + tab "Atajos" (DataGrid editable, 9 acciones, persistencia diff-vs-default). `TerminalTheme.ResolveCurrent` decide entre paleta predefinida o custom. 19 tests.
+
+**Total tras merge**: 172 tests verdes, build limpio.
+
+## Fase 14 — Master en master (pendiente)
+- Persistencia del árbol de splits (diseño documentado arriba en Fase 13 anterior).
+- Sincronizar settings vía GitHub Gist.
 - Soporte de SSH/PuTTY integrado.
 - Animación entre cambios de tab.
+- Tamaño relativo de splitters persistido.
+- Aplicar atajos custom en runtime (ahora solo se guardan).
+
+### Diseño de persistencia de árbol de splits
+
+Cada `PersistedTab` necesita un campo `Layout` opcional que describa el árbol de splits dentro de esa tab:
+
+```csharp
+public class PersistedSplitNode
+{
+    // Si Orientation != null → branch (First/Second populated, ProfileGuid/Cwd ignorados).
+    // Si Orientation == null → leaf (ProfileGuid/Cwd populated, First/Second ignorados).
+    public string? Orientation { get; set; } // "Vertical" o "Horizontal"
+    public PersistedSplitNode? First { get; set; }
+    public PersistedSplitNode? Second { get; set; }
+
+    // Datos del leaf:
+    public string? ProfileGuid { get; set; }
+    public string? ProfileName { get; set; }
+    public string? Cwd { get; set; }
+}
+```
+
+`PersistedTab.Layout` reemplaza la noción "una sola sesión, un solo perfil": ahora el `Layout` puede ser un árbol con perfiles distintos en cada hoja. El campo `ProfileGuid/Cwd` del nivel `PersistedTab` queda como fallback para sesiones sin splits o para mostrar el ícono/label de la tab.
+
+Plan de integración:
+1. `TerminalPane` recuerda `TerminalProfile? OriginProfile` (asignada al crear).
+2. `TerminalControl.SerializeLayout()` recorre el árbol de `Border.Child` y produce `PersistedSplitNode`.
+3. `TerminalControl.RestoreLayout(PersistedSplitNode)` reconstruye el árbol creando panes con el profile/cwd correcto.
+4. `MainWindow.SnapshotCurrentSessions` incluye `Layout`.
+5. `MainWindow.RestoreSessionOrCreateDefault` usa `Layout` si existe; si no, comportamiento actual.
+
+Limitaciones aceptables v1:
+- El tamaño relativo del splitter no se persiste (siempre vuelve al 50/50).
+- El cwd por pane se captura del OSC 7 más reciente.
+
+## Fase 14 — Próximo backlog
+- Sincronizar settings vía GitHub Gist.
+- Soporte de SSH/PuTTY integrado.
+- Animación entre cambios de tab.
+- Tamaño relativo de splitters persistido.
 
 ---
 
