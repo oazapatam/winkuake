@@ -176,13 +176,23 @@ Pivotamos de embeber `wt.exe` (chrome no se podía ocultar, clase de ventana cam
 
 **Total tras merge**: 172 tests verdes, build limpio.
 
-## Fase 14 — Master en master (pendiente)
-- Persistencia del árbol de splits (diseño documentado arriba en Fase 13 anterior).
+## Fase 14 — Persistencia del árbol de splits  ✅
+- [x] `PersistedSplitNode` con Orientation null para leaves; First/Second para branches; campos ProfileGuid/Name/Cwd en leaves.
+- [x] `PersistedTab.Layout` nullable; cuando hay splits se serializa el árbol.
+- [x] `TerminalPane.OriginProfile` retiene perfil con el que arrancó el pane (asignado por `TerminalControl.StartShell(TerminalProfile)` y heredado en splits).
+- [x] `TerminalControl.SerializeLayout` recorre el árbol de Border.Child y emite `PersistedSplitNode`.
+- [x] `TerminalControl.RestoreLayout(node, profileResolver)` reconstruye el árbol creando panes con sus perfiles correctos.
+- [x] `MainWindow.SnapshotCurrentSessions` incluye Layout; restore via `_pendingLayouts` aplicado en `OnSessionAdded`.
+- [x] 2 tests nuevos: roundtrip JSON de leaf y branch. **174/174 tests verdes.**
+
+## Fase 15 — Backlog
 - Sincronizar settings vía GitHub Gist.
-- Soporte de SSH/PuTTY integrado.
+- Soporte de SSH/PuTTY integrado (perfil con `ssh user@host`).
 - Animación entre cambios de tab.
-- Tamaño relativo de splitters persistido.
+- Tamaño relativo de splitters persistido (no solo estructura).
 - Aplicar atajos custom en runtime (ahora solo se guardan).
+- UpdateService: notificación in-app cuando hay versión nueva + descargador.
+- Notificaciones del tray icon.
 
 ### Diseño de persistencia de árbol de splits
 

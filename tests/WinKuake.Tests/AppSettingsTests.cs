@@ -115,6 +115,55 @@ public class AppSettingsTests
     }
 
     [Fact]
+    public void PersistedSplitNode_RoundtripsLeafThroughJson()
+    {
+        var src = new PersistedTab
+        {
+            ProfileName = "Ubuntu",
+            Layout = new PersistedSplitNode
+            {
+                ProfileGuid = "{abc}",
+                ProfileName = "pwsh",
+                Cwd = @"C:\code"
+            }
+        };
+        var opts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var json = JsonSerializer.Serialize(src, opts);
+        var dst = JsonSerializer.Deserialize<PersistedTab>(json, opts)!;
+        Assert.NotNull(dst.Layout);
+        Assert.Null(dst.Layout!.Orientation);
+        Assert.Equal("pwsh", dst.Layout.ProfileName);
+        Assert.Equal(@"C:\code", dst.Layout.Cwd);
+    }
+
+    [Fact]
+    public void PersistedSplitNode_RoundtripsBranchTree()
+    {
+        var src = new PersistedTab
+        {
+            Layout = new PersistedSplitNode
+            {
+                Orientation = "Vertical",
+                First  = new PersistedSplitNode { ProfileName = "A" },
+                Second = new PersistedSplitNode
+                {
+                    Orientation = "Horizontal",
+                    First  = new PersistedSplitNode { ProfileName = "B" },
+                    Second = new PersistedSplitNode { ProfileName = "C" }
+                }
+            }
+        };
+        var opts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var json = JsonSerializer.Serialize(src, opts);
+        var dst = JsonSerializer.Deserialize<PersistedTab>(json, opts)!;
+        Assert.Equal("Vertical", dst.Layout!.Orientation);
+        Assert.Equal("A", dst.Layout.First!.ProfileName);
+        Assert.Equal("Horizontal", dst.Layout.Second!.Orientation);
+        Assert.Equal("B", dst.Layout.Second.First!.ProfileName);
+        Assert.Equal("C", dst.Layout.Second.Second!.ProfileName);
+    }
+
+    [Fact]
     public void Workspaces_PersistThroughJson()
     {
         var src = new AppSettings

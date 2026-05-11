@@ -133,6 +133,26 @@ public class PersistedTab
     public string? CustomLabel { get; set; }
     /// <summary>Si la tab estaba fijada.</summary>
     public bool IsPinned { get; set; }
+    /// <summary>Árbol de splits dentro de la tab. Null si la tab no tiene splits.</summary>
+    public PersistedSplitNode? Layout { get; set; }
+}
+
+/// <summary>
+/// Nodo del árbol de splits de una tab. Si <see cref="Orientation"/> es
+/// "Vertical" u "Horizontal" → branch (con <see cref="First"/> y
+/// <see cref="Second"/>). Si es null → leaf (con datos del pane).
+/// </summary>
+public class PersistedSplitNode
+{
+    /// <summary>"Vertical" (columnas) u "Horizontal" (filas). null = leaf.</summary>
+    public string? Orientation { get; set; }
+    public PersistedSplitNode? First { get; set; }
+    public PersistedSplitNode? Second { get; set; }
+
+    // Datos del leaf:
+    public string? ProfileGuid { get; set; }
+    public string? ProfileName { get; set; }
+    public string? Cwd { get; set; }
 }
 
 /// <summary>Workspace: lista de tabs nombrada que el usuario puede guardar y cargar.</summary>

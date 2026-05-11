@@ -84,6 +84,14 @@ public partial class TerminalControl : UserControl
         if (_panes.Count > 0) _panes[0].StartShell(commandLine, startingDir);
     }
 
+    /// <summary>Variante que arranca con un perfil; asigna OriginProfile al main pane.</summary>
+    public void StartShell(WinKuake.Services.TerminalProfile profile)
+    {
+        if (profile.CommandLine is null) return;
+        if (_panes.Count > 0) _panes[0].OriginProfile = profile;
+        StartShell(profile.CommandLine, profile.StartingDirectory);
+    }
+
     public void Restart(string commandLine, string? startingDir = null)
     {
         // Reset total: colapsamos todos los splits y reiniciamos el principal.
@@ -96,6 +104,124 @@ public partial class TerminalControl : UserControl
     public void ApplyCurrentSettings()
     {
         foreach (var p in _panes) p.ApplyCurrentSettings();
+    }
+
+    // -- Persistencia del árbol de splits -----------------------------------
+
+    /// <summary>
+    /// Serializa el árbol actual de splits a un <see cref="WinKuake.Models.PersistedSplitNode"/>.
+    /// </summary>
+    public WinKuake.Models.PersistedSplitNode? SerializeLayout()
+    {
+        if (_rootSlot is null) return null;
+        return SerializeSlot(_rootSlot);
+    }
+
+    private static WinKuake.Models.PersistedSplitNode? SerializeSlot(Border slot)
+    {
+        if (slot.Child is TerminalPane pane)
+        {
+            return new WinKuake.Models.PersistedSplitNode
+            {
+                ProfileGuid = pane.OriginProfile?.Guid,
+                ProfileName = pane.OriginProfile?.DisplayName,
+                Cwd         = pane.CurrentCwd,
+            };
+        }
+        if (slot.Child is Grid g)
+        {
+            var borders = g.Children.OfType<Border>().ToList();
+            if (borders.Count != 2) return null;
+            // Determinar orientación por las definiciones.
+            var orientation = g.ColumnDefinitions.Count > 0 ? "Vertical" : "Horizontal";
+            return new WinKuake.Models.PersistedSplitNode
+            {
+                Orientation = orientation,
+                First  = SerializeSlot(borders[0]),
+                Second = SerializeSlot(borders[1]),
+            };
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Reconstruye el árbol de splits desde un <see cref="WinKuake.Models.PersistedSplitNode"/>.
+    /// Llamarlo antes de <see cref="StartShell"/>. Cada leaf recibe un pane nuevo;
+    /// el resolver de perfil se delega al caller vía <paramref name="profileResolver"/>.
+    /// </summary>
+    public void RestoreLayout(
+        WinKuake.Models.PersistedSplitNode root,
+        Func<string?, string?, WinKuake.Services.TerminalProfile> profileResolver)
+    {
+        // Limpiar estado actual antes de reconstruir.
+        foreach (var p in _panes.ToList()) p.Dispose();
+        _panes.Clear();
+        _activePane = null;
+        _rootSlot = NewSlot();
+        Root.Children.Clear();
+        Root.Children.Add(_rootSlot);
+
+        RestoreInto(_rootSlot, root, profileResolver);
+
+        // Activar el primer pane del árbol.
+        if (_panes.Count > 0) SetActivePane(_panes[0]);
+    }
+
+    private void RestoreInto(
+        Border slot,
+        WinKuake.Models.PersistedSplitNode node,
+        Func<string?, string?, WinKuake.Services.TerminalProfile> profileResolver)
+    {
+        if (node.Orientation is null)
+        {
+            // Leaf: crear pane con el profile resuelto.
+            var profile = profileResolver(node.ProfileGuid, node.ProfileName);
+            var pane = CreatePane();
+            pane.OriginProfile = profile;
+            slot.Child = pane;
+            if (profile.CommandLine is not null)
+            {
+                var startDir = (!string.IsNullOrEmpty(node.Cwd)
+                                && System.IO.Path.IsPathRooted(node.Cwd)
+                                && System.IO.Directory.Exists(node.Cwd))
+                    ? node.Cwd
+                    : profile.StartingDirectory;
+                pane.StartShell(profile.CommandLine, startDir);
+                _lastCommandLine ??= profile.CommandLine;
+                _lastStartingDir ??= startDir;
+            }
+            return;
+        }
+
+        // Branch: construir Grid de 3 cells con splitter.
+        if (node.First is null || node.Second is null) return;
+        var grid = new Grid();
+        var firstSlot  = NewSlot();
+        var secondSlot = NewSlot();
+        var orient = string.Equals(node.Orientation, "Vertical", StringComparison.OrdinalIgnoreCase)
+            ? Orientation.Vertical : Orientation.Horizontal;
+
+        if (orient == Orientation.Vertical)
+        {
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(4) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            Grid.SetColumn(firstSlot, 0);  grid.Children.Add(firstSlot);
+            var sp = NewSplitter(Orientation.Vertical); Grid.SetColumn(sp, 1); grid.Children.Add(sp);
+            Grid.SetColumn(secondSlot, 2); grid.Children.Add(secondSlot);
+        }
+        else
+        {
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(4) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            Grid.SetRow(firstSlot, 0);  grid.Children.Add(firstSlot);
+            var sp = NewSplitter(Orientation.Horizontal); Grid.SetRow(sp, 1); grid.Children.Add(sp);
+            Grid.SetRow(secondSlot, 2); grid.Children.Add(secondSlot);
+        }
+        slot.Child = grid;
+        RestoreInto(firstSlot,  node.First,  profileResolver);
+        RestoreInto(secondSlot, node.Second, profileResolver);
     }
 
     // -- Splits API públicos ------------------------------------------------
@@ -149,6 +275,8 @@ public partial class TerminalControl : UserControl
 
         var existingPane = _activePane; // queda en el primer slot
         var newPane = CreatePane();
+        // El nuevo pane hereda el perfil del pane source del split.
+        newPane.OriginProfile = existingPane.OriginProfile;
 
         var firstSlot  = NewSlot(); firstSlot.Child  = existingPane; // mover pane existente
         slot.Child = null; // desconecta antes de re-asignar

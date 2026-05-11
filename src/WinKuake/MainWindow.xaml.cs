@@ -192,10 +192,20 @@ public partial class MainWindow : Window
             // Aplicar cwd si es un path Windows válido como starting directory.
             var startDir = (!string.IsNullOrEmpty(t.Cwd) && System.IO.Path.IsPathRooted(t.Cwd) && System.IO.Directory.Exists(t.Cwd))
                 ? t.Cwd : profile.StartingDirectory;
-            var session = _sessions.Create(profile with { StartingDirectory = startDir });
-            if (!string.IsNullOrEmpty(t.CustomLabel)) _sessions.Rename(session.Id, t.CustomLabel);
-            if (t.IsPinned) _sessions.TogglePin(session.Id);
+            CreateRestoringTab(profile with { StartingDirectory = startDir }, t);
         }
+    }
+
+    private void CreateRestoringTab(TerminalProfile profile, PersistedTab t)
+    {
+        // Pre-registra el layout (si existe) ANTES de Create — OnSessionAdded
+        // lo consume y aplica RestoreLayout.
+        // Anticipamos el id que asignará el manager (siguiente id incremental).
+        var nextId = (_sessions.Sessions.LastOrDefault()?.Id ?? 0) + 1;
+        if (t.Layout is not null) _pendingLayouts[nextId] = t.Layout;
+        var session = _sessions.Create(profile);
+        if (!string.IsNullOrEmpty(t.CustomLabel)) _sessions.Rename(session.Id, t.CustomLabel);
+        if (t.IsPinned) _sessions.TogglePin(session.Id);
     }
 
     private TerminalProfile ResolvePersistedProfile(PersistedTab t)
@@ -210,13 +220,18 @@ public partial class MainWindow : Window
 
     private List<PersistedTab> SnapshotCurrentSessions()
     {
-        return _sessions.Sessions.Select(s => new PersistedTab
+        return _sessions.Sessions.Select(s =>
         {
-            ProfileGuid = s.Profile?.Guid,
-            ProfileName = s.Profile?.DisplayName,
-            Cwd         = _controls.TryGetValue(s.Id, out var c) ? c.CurrentCwd : null,
-            CustomLabel = s.CustomLabel,
-            IsPinned    = s.IsPinned,
+            _controls.TryGetValue(s.Id, out var c);
+            return new PersistedTab
+            {
+                ProfileGuid = s.Profile?.Guid,
+                ProfileName = s.Profile?.DisplayName,
+                Cwd         = c?.CurrentCwd,
+                CustomLabel = s.CustomLabel,
+                IsPinned    = s.IsPinned,
+                Layout      = c?.SerializeLayout(),
+            };
         }).ToList();
     }
 
@@ -245,10 +260,32 @@ public partial class MainWindow : Window
             if (_sessions.Active?.Id == s.Id) UpdateStatusForActive();
         };
 
-        if (s.Profile?.CommandLine is not null)
-            ctrl.StartShell(s.Profile.CommandLine, s.Profile.StartingDirectory);
+        // Si hay layout pendiente (restauración de sesión), lo aplica antes de
+        // arrancar shell; cada hoja del árbol creará su propio pane+shell.
+        if (_pendingLayouts.TryGetValue(s.Id, out var layout) && layout is not null)
+        {
+            ctrl.RestoreLayout(layout, ResolvePersistedProfileFromGuidOrName);
+            _pendingLayouts.Remove(s.Id);
+        }
+        else if (s.Profile is not null)
+        {
+            ctrl.StartShell(s.Profile);
+        }
 
         Tabs.Add(new TabItem { Index = s.Id, Profile = s.Profile, IsActive = false });
+    }
+
+    /// <summary>Layouts pendientes a aplicar cuando OnSessionAdded reciba la sesión.</summary>
+    private readonly Dictionary<int, PersistedSplitNode?> _pendingLayouts = new();
+
+    private TerminalProfile ResolvePersistedProfileFromGuidOrName(string? guid, string? name)
+    {
+        TerminalProfile? p = null;
+        if (!string.IsNullOrEmpty(guid))
+            p = _profiles.FirstOrDefault(x => string.Equals(x.Guid, guid, StringComparison.OrdinalIgnoreCase));
+        if (p is null && !string.IsNullOrEmpty(name))
+            p = _profiles.FirstOrDefault(x => string.Equals(x.DisplayName, name, StringComparison.OrdinalIgnoreCase));
+        return p ?? DefaultProfile();
     }
 
     private void OnSessionClosed(TerminalSession s)
@@ -543,9 +580,7 @@ public partial class MainWindow : Window
             var profile = ResolvePersistedProfile(t);
             var startDir = (!string.IsNullOrEmpty(t.Cwd) && System.IO.Path.IsPathRooted(t.Cwd) && System.IO.Directory.Exists(t.Cwd))
                 ? t.Cwd : profile.StartingDirectory;
-            var s = _sessions.Create(profile with { StartingDirectory = startDir });
-            if (!string.IsNullOrEmpty(t.CustomLabel)) _sessions.Rename(s.Id, t.CustomLabel);
-            if (t.IsPinned) _sessions.TogglePin(s.Id);
+            CreateRestoringTab(profile with { StartingDirectory = startDir }, t);
         }
     }
 

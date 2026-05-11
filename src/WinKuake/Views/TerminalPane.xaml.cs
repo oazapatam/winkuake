@@ -29,6 +29,9 @@ public partial class TerminalPane : UserControl
     /// <summary>CWD actual reportado por el shell vía OSC 7. Null si nunca llegó.</summary>
     public string? CurrentCwd { get; private set; }
 
+    /// <summary>Perfil con el que arrancó este pane. Usado para persistir layout.</summary>
+    public WinKuake.Services.TerminalProfile? OriginProfile { get; set; }
+
     public event Action<string>? CwdChanged;
     public event Action? NextTabRequested;
     public event Action? PrevTabRequested;
