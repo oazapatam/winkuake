@@ -271,6 +271,11 @@
       postToHost({ type: 'focusPane', direction: dir });
       return false;
     }
+    // Ctrl+Shift+P : abrir paleta de comandos (snippets)
+    if (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyP') {
+      postToHost({ type: 'openPalette' });
+      return false;
+    }
     // Ctrl+Shift+S : guardar buffer en disco
     if (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyS') {
       // Capturamos todo el buffer (visible + scrollback) como texto.

@@ -167,6 +167,7 @@ public partial class MainWindow : Window
         ctrl.MoveActiveByRequested += d => _sessions.MoveActiveBy(d);
         ctrl.SaveBufferRequested   += SaveBufferToFile;
         ctrl.OpenFileRequested     += path => OpenFileFromTerminal(ctrl, path);
+        ctrl.OpenPaletteRequested  += () => OpenCommandPalette(ctrl);
         ctrl.CwdChanged += cwd =>
         {
             if (_sessions.Active?.Id == s.Id) UpdateStatusForActive();
@@ -412,6 +413,18 @@ public partial class MainWindow : Window
     {
         var tab = Tabs.FirstOrDefault(t => t.Index == s.Id);
         if (tab is not null) tab.IsPinned = s.IsPinned;
+    }
+
+    private void OpenCommandPalette(TerminalControl ctrl)
+    {
+        var dlg = new QuickCommandWindow(CommandSnippetService.Defaults()) { Owner = this };
+        if (dlg.ShowDialog() == true && dlg.SelectedSnippet is { } snip)
+        {
+            // Enter normal = inyectar texto sin ejecutar (el usuario revisa y pulsa Enter).
+            // Shift+Enter = inyectar + ejecutar (\n al final).
+            var text = dlg.ExecuteAfterInject ? snip.Command + "\n" : snip.Command;
+            ctrl.InjectInputToActive(text);
+        }
     }
 
     private void OpenFileFromTerminal(TerminalControl ctrl, string path)

@@ -116,12 +116,21 @@ Pivotamos de embeber `wt.exe` (chrome no se podía ocultar, clase de ventana cam
   - Resolución de paths relativos contra `CurrentCwd` del pane.
   - Traducción `/mnt/c/…` → `C:\…` para abrir archivos WSL desde Windows.
 
-## Fase 8 — Backlog
-- Snippets / quick command palette (overlay con search + lista, hotkey `Ctrl+Shift+P`).
-- Find global multi-buffer (`Ctrl+Shift+F` busca en TODOS los buffers a la vez con UI dedicada).
+## Fase 8 — Paleta de comandos  ✅
+- [x] `CommandSnippet` record + `CommandSnippetService` con 21 defaults (git, docker, npm, dotnet, etc.). Filter multi-token tipo VSCode (todos los tokens deben matchear name o command). 6 tests cubriendo.
+- [x] `QuickCommandWindow` (overlay flotante, borderless, accent al item activo, doble-click commit). TextBox arriba para buscar, ListBox abajo, navegación con flechas.
+- [x] Atajo `Ctrl+Shift+P` desde xterm → `OpenPaletteRequested` → `MainWindow.OpenCommandPalette`.
+- [x] `TerminalPane.InjectInput(string)` / `TerminalControl.InjectInputToActive(string)` para escribir al PTY desde fuera.
+- [x] **Enter** inyecta el texto al terminal (el usuario revisa y ejecuta). **Shift+Enter** inyecta + ejecuta directamente (`\n` final).
+- [x] Si la query no matchea ningún snippet, se inyecta el texto crudo como comando ad-hoc.
+
+## Fase 9 — Backlog
+- User-editable snippets (persistir en `AppSettings.UserSnippets`).
+- Find global multi-buffer (`Ctrl+Shift+F` busca en TODOS los buffers).
 - Editor de paleta custom (tab adicional en Settings).
-- Persistencia de splits (recordar layout al reabrir tab).
-- Broadcast input (escribir en varios panes a la vez).
+- Persistencia de splits / layout al cerrar y reabrir tab.
+- Broadcast input (mismo input a varios panes).
+- Soporte para variables en snippets (ej. `{cwd}`, `{branch}`).
 
 ---
 

@@ -36,6 +36,10 @@ public partial class TerminalControl : UserControl
     public event Action<int>? MoveActiveByRequested;
     public event Action<string>? SaveBufferRequested;
     public event Action<string>? OpenFileRequested;
+    public event Action? OpenPaletteRequested;
+
+    /// <summary>Envía texto al pane activo. Usado por la paleta de comandos.</summary>
+    public void InjectInputToActive(string text) => _activePane?.InjectInput(text);
 
     public TerminalControl()
     {
@@ -98,6 +102,7 @@ public partial class TerminalControl : UserControl
         pane.ClosePaneRequested       += CloseActivePane;
         pane.FocusReceived            += () => SetActivePane(pane);
         pane.FocusPaneRequested       += FocusInDirection;
+        pane.OpenPaletteRequested     += () => OpenPaletteRequested?.Invoke();
         return pane;
     }
 

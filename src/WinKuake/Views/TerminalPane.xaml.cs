@@ -41,6 +41,10 @@ public partial class TerminalPane : UserControl
     public event Action? FocusReceived;
     public event Action<string>? FocusPaneRequested;
     public event Action<string>? OpenFileRequested;
+    public event Action? OpenPaletteRequested;
+
+    /// <summary>Escribe texto directamente al PTY (uso: paleta de comandos).</summary>
+    public void InjectInput(string text) => _pty.Write(text);
 
     public TerminalPane()
     {
@@ -216,6 +220,9 @@ public partial class TerminalPane : UserControl
                         var path = fp.GetString();
                         if (!string.IsNullOrEmpty(path)) OpenFileRequested?.Invoke(path!);
                     }
+                    break;
+                case "openPalette":
+                    OpenPaletteRequested?.Invoke();
                     break;
             }
         }
