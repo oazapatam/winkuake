@@ -35,6 +35,9 @@
     <Content Include="Resources\terminal\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <!-- El .ico se embebe como recurso WPF para que MainWindow.Icon lo
+         cargue por pack URI sin depender del current directory. -->
+    <Resource Include="Resources\winkuake.ico" />
   </ItemGroup>
 
 </Project>
