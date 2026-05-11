@@ -1,125 +1,152 @@
+<div align="center">
+
+<img src="assets/branding/dist/winkuake-256.png" alt="WinKuake" width="160" />
+
 # WinKuake
 
-Terminal drop-down estilo **[Yakuake](https://apps.kde.org/es/yakuake/)** (KDE) para Windows.
-Pulsa **F12**, baja el terminal desde la parte superior; pulsa F12 otra vez y se oculta.
+**A modern drop-down terminal for Windows.**
+Press `F12`, the terminal slides down from the top of your screen. Press `F12` again, it slides back.
 
-Aplicación nativa **WPF / .NET 10** que **embebe Windows Terminal** como motor — análogo a cómo
-Yakuake embebe Konsole. Hereda gratis: tabs, splits horizontal/vertical, perfiles
-PowerShell · WSL · CMD · Git Bash, render DirectX, copy/paste, búsqueda, hyperlinks.
+[![Tests](https://img.shields.io/badge/tests-465%20passing-00C8FF)](#)
+[![.NET](https://img.shields.io/badge/.NET-10-00C8FF)](#)
+[![Windows](https://img.shields.io/badge/Windows-10%2F11-00C8FF)](#)
+
+</div>
 
 ---
 
-## Características
+## Why WinKuake
 
-- 🎯 **Drop-down animado** desde el tope, con easing.
-- ⌨️ **Hotkey global F12** (configurable: Ctrl/Alt/Shift/Win + cualquier tecla).
-- 📑 **Múltiples pestañas** (Ctrl+Shift+T o botón "+ Pestaña").
-- ➗ **Split vertical y horizontal** (Alt+Shift++ / Alt+Shift+− o botones de la barra).
-- 🐧 **Perfiles**: detecta automáticamente PowerShell 7, Windows PowerShell, CMD, Git Bash,
-   Azure Cloud Shell y todas las distros **WSL** instaladas.
-- 🎚️ **Configuración** del % de pantalla (alto, ancho), opacidad, animación, auto-ocultar al perder foco.
-- 🚀 **Iniciar con Windows** (opcional, sin admin).
-- 📦 **Instalador profesional** generado con Inno Setup.
+If you used [Yakuake](https://apps.kde.org/yakuake/) on Linux, you already know the workflow. Quake-style drop-down terminals stay out of your way until you need them, then they're one keypress away — no Alt+Tab, no window juggling.
 
-## Atajos
+WinKuake brings that workflow to Windows with a **native WPF / .NET 10 app** powered by **ConPTY + xterm.js (WebView2)**. It's standalone — it does **not** depend on Windows Terminal, WSL host, or any external launcher.
 
-| Atajo                 | Acción                                       |
-|-----------------------|----------------------------------------------|
-| **F12**               | Mostrar / ocultar WinKuake                   |
-| Ctrl+Shift+T          | Nueva pestaña                                |
-| Ctrl+Tab / Ctrl+Shift+Tab | Pestaña siguiente / anterior            |
-| Alt+Shift+`+`         | Dividir panel verticalmente                  |
-| Alt+Shift+`-`         | Dividir panel horizontalmente                |
-| Alt+Flechas           | Mover foco entre paneles                     |
-| Ctrl+Shift+W          | Cerrar panel / pestaña                       |
-| Ctrl+`+` / Ctrl+`-`   | Zoom in / out                                |
+## Features
 
-## Requisitos
+- **Quake-style drop-down** with smooth slide animation, configurable height/width as a percentage of the screen.
+- **Global hotkey** (default `F12`, configurable to any combo of `Ctrl/Alt/Shift/Win + key`).
+- **Profiles auto-detected**: Windows PowerShell, PowerShell 7, cmd, all installed **WSL** distros, **Git Bash**, **Visual Studio Developer** (Cmd Prompt + PowerShell, per VS install). Add your own with custom command lines.
+- **Tabs and recursive splits** (vertical and horizontal, no depth limit). Drag tabs to reorder, pin tabs, jump-to-tab with `Ctrl+Shift+1..9`.
+- **Multi-pane workflows**: focus by direction with `Alt+Arrows`, **broadcast input** to every pane (`Ctrl+Shift+B`).
+- **Command palette** (`Ctrl+Shift+P`) with 21 default snippets (git, docker, npm, dotnet…) plus your own. Variables: `{cwd}`, `{home}`, `{user}`, `{date}`, `{branch}`, `{selection}`.
+- **Workspaces**: save and restore named tab layouts (including the full split tree per tab).
+- **Right-click context menu** on any pane: copy, paste, find, split, close, palette, clear.
+- **Global search** across every open buffer (`Ctrl+Shift+Alt+F`) — find that error message you saw earlier across all panes at once.
+- **Custom themes**: 5 built-in (VSCode Dark+, Dracula, Nord, Gruvbox Dark, Monokai) plus a full 19-color custom palette editor.
+- **Persistent everything**: tabs, splits, workspaces, window size (drag the borders, it's saved), profile choice, theme, font size, hotkey, snippets. All in `%AppData%\WinKuake\settings.json`.
+- **Tray icon** with show/hide/settings/quit menu.
+- **Self-contained `.exe`** (single file, no .NET runtime to install).
 
-- Windows 10 1809 o superior (recomendado **Windows 11**).
-- **Windows Terminal** instalado (preinstalado en Win 11; si no, gratis en
-   [Microsoft Store](https://aka.ms/terminal)).
-- **.NET 10 Desktop Runtime** — solo si compilas sin `--self-contained`.
-   El instalador empaqueta la versión self-contained y no requiere instalación previa.
+## Shortcuts
 
-## Compilar desde código
+| Shortcut | Action |
+|---|---|
+| `F12` | Show / hide WinKuake |
+| `Ctrl+Shift+T` | New tab |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
+| `Ctrl+Shift+1..9` | Jump to tab N |
+| `Ctrl+Shift+PageUp` / `PageDown` | Move active tab |
+| `Alt+Shift++` (or `Ctrl+Shift+D`) | Split vertical |
+| `Alt+Shift+-` (or `Ctrl+Shift+E`) | Split horizontal |
+| `Alt+↑ / ↓ / ← / →` | Focus neighbor pane |
+| `Ctrl+Shift+W` | Close pane |
+| `Ctrl+Shift+P` | Command palette |
+| `Ctrl+Shift+B` | Toggle broadcast input |
+| `Ctrl+Shift+F` | Find in current buffer |
+| `Ctrl+Shift+Alt+F` | Global find across all panes |
+| `Ctrl+Shift+S` | Save buffer to file |
+| `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copy / paste (with bracketed paste) |
+| `Ctrl+L` | Clear buffer |
+| `Ctrl++` / `Ctrl+-` / `Ctrl+0` | Zoom in / out / reset |
 
-### Lo que necesitas instalar
+All shortcuts are remappable from **Settings → Shortcuts**.
 
-1. **Visual Studio 2022 Community** (gratis): https://visualstudio.microsoft.com/es/vs/community/
-   - En el instalador marca el workload **"Desarrollo de escritorio de .NET"** (esto incluye
-      el SDK de .NET 10 y todo lo necesario para WPF).
-2. **Inno Setup 6** (para generar el instalador): https://jrsoftware.org/isinfo.php
+## Requirements
 
-Eso es todo.
+- **Windows 10 1809+** or **Windows 11**.
+- **Microsoft Edge WebView2 Runtime** (preinstalled on Windows 11; the installer offers to download it on Win 10 if missing).
+- That's it. No Windows Terminal, no Python, no extra runtime.
 
-### Pasos
+## Install
+
+Download the latest `WinKuake-Setup-x.y.z.exe` from the [releases page](https://github.com/omazapa/winkuake/releases) and run it. Per-user install, no admin required.
+
+The installer offers:
+- Desktop shortcut.
+- Launch with Windows on sign-in.
+- Run WinKuake right after install.
+
+To uninstall: standard Windows "Add or remove programs". Your settings in `%AppData%\WinKuake\` are kept on uninstall (so reinstalling a newer version preserves your profiles, workspaces and snippets).
+
+## Build from source
 
 ```powershell
-# 1. Clonar / abrir el proyecto
-git clone <url> winkuake
-cd winkuake
+# Restore + build (Debug)
+dotnet build src\WinKuake\WinKuake.csproj
 
-# 2. Restaurar y compilar
-dotnet build src\WinKuake\WinKuake.csproj -c Release
-
-# 3. Ejecutar en debug (o abrir WinKuake.sln en VS y F5)
+# Run
 dotnet run --project src\WinKuake\WinKuake.csproj
-```
 
-### Generar el instalador
+# Tests
+dotnet test tests\WinKuake.Tests\WinKuake.Tests.csproj
 
-```powershell
-# 1. Publicar binario self-contained (no requiere .NET en el equipo destino)
+# Publish self-contained .exe
 dotnet publish src\WinKuake\WinKuake.csproj -c Release -r win-x64 `
     --self-contained true -o publish
 
-# 2. Compilar el instalador con Inno Setup
+# Build the installer (requires Inno Setup 6)
 iscc installer\WinKuake.iss
-
-# Salida: installer\Output\WinKuake-Setup-0.1.0.exe
+# → installer\Output\WinKuake-Setup-0.1.0.exe
 ```
 
-## Configuración
+## Branding
 
-`%AppData%\WinKuake\settings.json`:
+WinKuake's identity is built around a single motif: a stylized command-line **caret + cursor** (`❯_`) on a rounded square, in electric cyan over graphite.
 
-```json
-{
-  "hotkeyModifiers": [],
-  "hotkeyKey": "F12",
-  "heightRatio": 0.5,
-  "widthRatio": 1.0,
-  "opacity": 0.97,
-  "defaultProfile": "",
-  "autoHideOnFocusLost": false,
-  "startWithWindows": false,
-  "animationMs": 180,
-  "monitorIndex": 0
-}
-```
+| Asset | Use |
+|---|---|
+| `assets/branding/logo.svg` | Vector source of the glyph. |
+| `assets/branding/logo-horizontal.svg` | Logo with wordmark for headers and READMEs. |
+| `assets/branding/dist/winkuake.ico` | App and installer icon (multi-resolution 16..256). |
+| `assets/branding/dist/winkuake-{N}.png` | Raster glyph at common sizes (16, 24, 32, 48, 64, 128, 256, 512). |
+| `assets/branding/dist/wizard-image.bmp` | Inno Setup wizard banner (164×314). |
+| `assets/branding/dist/wizard-small.bmp` | Inno Setup wizard small banner (55×58). |
 
-Editable también desde el icono ⚙ en la barra superior de la ventana.
+Re-render any time with `pwsh assets/branding/build-assets.ps1`. The script redraws the logo with `System.Drawing` so there are no external dependencies (no Inkscape, no ImageMagick).
 
-## Arquitectura técnica
+**Palette:**
 
-Ver [`ARCHITECTURE.md`](ARCHITECTURE.md). Resumen:
+| Token | Hex | Use |
+|---|---|---|
+| Accent | `#00C8FF` | Primary action, focus, active tab |
+| Accent dark | `#0099CC` | Gradients, hover, secondary actions |
+| Background dark | `#0E1116` | Window background |
+| Surface | `#1B2027` | Chrome, status bar |
+| Text high | `#E8EDF2` | Foreground text |
+| Text low | `#8A93A0` | Secondary text, hints |
 
-- WPF borderless window + animación slide en `Window.Top`.
-- `RegisterHotKey` para hotkey global (vía `HwndSource` hook a `WM_HOTKEY`).
-- `HwndHost` con un Win32 "static" como contenedor, dentro del cual hacemos
-   `SetParent` al HWND de **Windows Terminal**, localizado por
-   `EnumWindows` filtrando `CASCADIA_HOSTING_WINDOW_CLASS` + título único.
-- Pestañas y splits delegados a `wt.exe --window winkuake-host <action>`.
+## Architecture (10-second overview)
 
-## Roadmap
+- **WPF host** — drop-down window, animation, hotkey, tabs, splits, settings UI.
+- **ConPTY** (`Services/ConPtyService.cs`) — Win32 pseudo-console per pane, real shell I/O.
+- **WebView2 + xterm.js** — terminal rendering, scrollback, search, hyperlinks. One WebView per pane, all sharing a single `CoreWebView2Environment`.
+- **ProfileRegistry** — pluggable detectors (`Services/Detectors/`) for PowerShell, cmd, WSL, Git Bash, VS Developer. No dependency on Windows Terminal's `settings.json`.
+- **Settings** — persisted POCO in `%AppData%\WinKuake\settings.json`.
 
-- [ ] Soporte multi-monitor con selección de monitor activo.
-- [ ] Skins / temas personalizables.
-- [ ] Modo "always on top" toggle desde la chrome.
-- [ ] Notificaciones de bell.
-- [ ] Atajo "mostrar en monitor del cursor".
+For the full design, see [`PLAN.md`](PLAN.md).
 
-## Licencia
+## Project status
 
-MIT — ver [LICENSE](LICENSE) (pendiente de añadir).
+Active development. **465 unit tests** cover the engine, settings persistence, profile detection, splits tree, and UI helpers. Build is clean.
+
+## License
+
+TBD — currently no license file. Treat as personal-use until one is added.
+
+---
+
+<div align="center">
+
+<sub>Built with C# 12 · .NET 10 · WPF · WebView2 · xterm.js · ConPTY</sub>
+
+</div>

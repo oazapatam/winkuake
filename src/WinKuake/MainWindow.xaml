@@ -86,7 +86,7 @@
                                             Margin="8,0,0,0"
                                             VerticalAlignment="Center"
                                             Tag="{Binding Index}"
-                                            ToolTip="Cerrar esta pestaña"
+                                            ToolTip="Close this tab"
                                             Click="CloseSpecificTab_Click" />
                                 </StackPanel>
                                 <Border.Style>
@@ -114,14 +114,14 @@
                             Style="{StaticResource ChromeButton}"
                             FontSize="14"
                             Padding="10,2"
-                            ToolTip="Nueva pestaña con el perfil activo (Ctrl+Shift+T)"
+                            ToolTip="New tab with the active profile (Ctrl+Shift+T)"
                             Click="NewTabButton_Click" />
                     <Button x:Name="ProfilePickerButton"
                             Content="⌄"
                             Style="{StaticResource ChromeButton}"
                             FontSize="14"
                             Padding="6,2,8,2"
-                            ToolTip="Elegir perfil para nueva pestaña"
+                            ToolTip="Choose profile for a new tab"
                             Click="ProfilePickerButton_Click">
                         <Button.ContextMenu>
                             <ContextMenu x:Name="ProfileMenu" />
@@ -160,28 +160,28 @@
                             Style="{StaticResource ChromeButton}"
                             FontSize="12"
                             Padding="8,2"
-                            ToolTip="Lock: cuando está activo, la ventana no se auto-oculta al perder foco"
+                            ToolTip="Lock: when on, the window won't auto-hide on focus loss"
                             Click="LockButton_Click" />
                     <Button Content="≡"
                             Style="{StaticResource ChromeButton}"
                             FontSize="14"
                             Padding="8,2"
-                            ToolTip="Menú (configuración, ayuda)"
+                            ToolTip="Menu (settings, help)"
                             Click="MenuButton_Click">
                         <Button.ContextMenu>
                             <ContextMenu x:Name="HamburgerMenu">
-                                <MenuItem Header="Configurar WinKuake…  (Ctrl+Shift+,)" Click="OpenSettings_Click" />
+                                <MenuItem Header="Settings…              (Ctrl+Shift+,)" Click="OpenSettings_Click" />
                                 <Separator />
-                                <MenuItem Header="Nueva pestaña       (Ctrl+Shift+T)" Click="MenuNewTab_Click" />
-                                <MenuItem Header="Dividir vertical    (Alt+Shift++)"  Click="SplitVertical_Click" />
-                                <MenuItem Header="Dividir horizontal  (Alt+Shift+−)"  Click="SplitHorizontal_Click" />
-                                <MenuItem Header="Cerrar pane         (Ctrl+Shift+W)" Click="ClosePane_Click" />
+                                <MenuItem Header="New tab               (Ctrl+Shift+T)" Click="MenuNewTab_Click" />
+                                <MenuItem Header="Split vertical        (Alt+Shift++)"  Click="SplitVertical_Click" />
+                                <MenuItem Header="Split horizontal      (Alt+Shift+−)"  Click="SplitHorizontal_Click" />
+                                <MenuItem Header="Close pane            (Ctrl+Shift+W)" Click="ClosePane_Click" />
                                 <Separator />
-                                <MenuItem Header="Paleta de comandos  (Ctrl+Shift+P)" Click="OpenPalette_Click" />
+                                <MenuItem Header="Command palette       (Ctrl+Shift+P)" Click="OpenPalette_Click" />
                                 <Separator />
                                 <MenuItem x:Name="WorkspacesMenu" Header="Workspaces" />
                                 <Separator />
-                                <MenuItem Header="Ocultar (Win+F12)"  Click="HideButton_Click" />
+                                <MenuItem Header="Hide                  (Win+F12)"      Click="HideButton_Click" />
                             </ContextMenu>
                         </Button.ContextMenu>
                     </Button>
@@ -190,7 +190,7 @@
                             Foreground="#D04848"
                             FontSize="13"
                             Padding="8,2"
-                            ToolTip="Salir de WinKuake"
+                            ToolTip="Quit WinKuake"
                             Click="ExitButton_Click" />
                 </StackPanel>
             </Grid>

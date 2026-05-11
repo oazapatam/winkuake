@@ -417,12 +417,12 @@ public partial class MainWindow : Window
 
         var about = new MenuItem
         {
-            Header = "Acerca de",
+            Header = "About",
             Icon = new TextBlock { Text = "?", FontWeight = FontWeights.Bold, FontSize = 14 }
         };
         about.Click += (_, _) => MessageBox.Show(
-            "WinKuake — drop-down terminal estilo Yakuake.\nMotor: ConPTY + xterm.js (WebView2).",
-            "Acerca de WinKuake", MessageBoxButton.OK, MessageBoxImage.Information);
+            "WinKuake — drop-down terminal for Windows.\nEngine: ConPTY + xterm.js (WebView2).",
+            "About WinKuake", MessageBoxButton.OK, MessageBoxImage.Information);
         ProfileMenu.Items.Add(about);
     }
 
@@ -820,8 +820,8 @@ public partial class MainWindow : Window
     {
         LockButton.Content = _settings.AutoHideOnFocusLost ? "○" : "●";
         LockButton.ToolTip = _settings.AutoHideOnFocusLost
-            ? "Lock OFF — la ventana se ocultará al perder foco. Click para activar lock."
-            : "Lock ON — la ventana NO se oculta al perder foco. Click para desactivar.";
+            ? "Lock OFF — the window will hide on focus loss. Click to enable lock."
+            : "Lock ON — the window will NOT hide on focus loss. Click to disable.";
     }
 
     private void MenuButton_Click(object sender, RoutedEventArgs e)

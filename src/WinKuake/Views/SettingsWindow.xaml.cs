@@ -293,8 +293,8 @@ public partial class SettingsWindow : Window
         if (added == 0)
         {
             MessageBox.Show(this,
-                "Sin cambios — ya tienes todos los detectables.",
-                "Detectar terminales", MessageBoxButton.OK, MessageBoxImage.Information);
+                "No changes — every detectable terminal is already on the list.",
+                "Detect terminals", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -305,8 +305,8 @@ public partial class SettingsWindow : Window
         ProfilesGrid.ItemsSource = _profilesView;
 
         MessageBox.Show(this,
-            $"Se detectaron {added} nuevos perfiles.",
-            "Detectar terminales", MessageBoxButton.OK, MessageBoxImage.Information);
+            $"Detected {added} new profile(s).",
+            "Detect terminals", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     private void AddManualProfile_Click(object sender, RoutedEventArgs e)
@@ -321,9 +321,9 @@ public partial class SettingsWindow : Window
     private void ResetProfiles_Click(object sender, RoutedEventArgs e)
     {
         var ok = MessageBox.Show(this,
-            "Esto borrará TODOS los perfiles guardados (detectados y manuales) y el default.\n\n" +
-            "Podrás repoblar la lista con \"Detectar terminales\" después. ¿Continuar?",
-            "Restablecer perfiles", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+            "This deletes ALL saved profiles (detected and custom) and the default.\n\n" +
+            "You can repopulate the list with \"Detect terminals\" afterwards. Continue?",
+            "Reset profiles", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
         if (ok != MessageBoxResult.OK) return;
 
         _profilesView.Clear();

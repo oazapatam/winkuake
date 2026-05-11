@@ -33,27 +33,27 @@ public sealed class TrayIconService : IDisposable
             {
                 Icon = icon ?? SystemIcons.Application,
                 Visible = true,
-                Text = "WinKuake — drop-down terminal"
+                Text = "WinKuake — drop-down terminal"  // tray tooltip; already English
             };
 
             var menu = new ContextMenuStrip();
-            var show = new ToolStripMenuItem("Mostrar / ocultar");
+            var show = new ToolStripMenuItem("Show / hide");
             show.Click += (_, _) => ShowRequested?.Invoke();
             menu.Items.Add(show);
 
-            var hide = new ToolStripMenuItem("Ocultar");
+            var hide = new ToolStripMenuItem("Hide");
             hide.Click += (_, _) => HideRequested?.Invoke();
             menu.Items.Add(hide);
 
             menu.Items.Add(new ToolStripSeparator());
 
-            var settings = new ToolStripMenuItem("Configuración…");
+            var settings = new ToolStripMenuItem("Settings…");
             settings.Click += (_, _) => SettingsRequested?.Invoke();
             menu.Items.Add(settings);
 
             menu.Items.Add(new ToolStripSeparator());
 
-            var exit = new ToolStripMenuItem("Salir");
+            var exit = new ToolStripMenuItem("Quit");
             exit.Click += (_, _) => ExitRequested?.Invoke();
             menu.Items.Add(exit);
 
