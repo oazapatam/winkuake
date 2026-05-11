@@ -197,3 +197,62 @@ public class ContextMenuTests
         throw new DirectoryNotFoundException("No encontré src/WinKuake desde " + AppContext.BaseDirectory);
     }
 }
+
+/// <summary>
+/// Regresión del bug "split mata la consola original": al hacer split el
+/// pane existente se reparenta del slot original a un sub-slot del nuevo
+/// Grid. WPF dispara <c>Unloaded</c> en cualquier reparenting; si en
+/// <c>Unloaded</c> se llama <c>_pty.Dispose()</c>, el shell muere antes de
+/// que el reparenting termine. La limpieza correcta es por
+/// <c>TerminalPane.Dispose()</c> explícito desde
+/// <see cref="WinKuake.Views.TerminalControl"/>.
+/// </summary>
+public class SplitReparentRegressionTests
+{
+    private static string PanePath
+    {
+        get
+        {
+            var dir = AppContext.BaseDirectory;
+            for (int i = 0; i < 10 && dir is not null; i++)
+            {
+                var candidate = Path.Combine(dir, "src", "WinKuake", "Views", "TerminalPane.xaml.cs");
+                if (File.Exists(candidate)) return candidate;
+                dir = Path.GetDirectoryName(dir);
+            }
+            throw new FileNotFoundException("TerminalPane.xaml.cs no encontrado");
+        }
+    }
+
+    [Fact]
+    public void TerminalPane_NoSuscribeUnloadedADispose()
+    {
+        // Guard contra reintroducir `Unloaded += OnUnloaded` o equivalente.
+        var src = File.ReadAllText(PanePath);
+        Assert.DoesNotMatch(new Regex(@"Unloaded\s*\+=\s*OnUnloaded"), src);
+    }
+
+    [Fact]
+    public void TerminalPane_NoTieneOnUnloadedQueDispone()
+    {
+        // El método OnUnloaded fue eliminado. Si vuelve, debe NO disponer _pty.
+        var src = File.ReadAllText(PanePath);
+        // Si alguien reintroduce un OnUnloaded, no debe tocar el pty.
+        var match = Regex.Match(src, @"OnUnloaded\s*\([^)]*\)\s*[^{]*\{[^}]*\}");
+        if (match.Success)
+        {
+            Assert.DoesNotContain("_pty.Dispose", match.Value);
+            Assert.DoesNotContain("_pty.OutputReceived -=", match.Value);
+        }
+    }
+
+    [Fact]
+    public void TerminalPane_DisposeSiguePresenteParaCleanupExplicito()
+    {
+        // Sanity check: la cleanup explícita por Dispose() sigue ahí
+        // (TerminalControl la invoca en CloseInternal y RestoreLayout).
+        var src = File.ReadAllText(PanePath);
+        Assert.Matches(new Regex(@"public\s+void\s+Dispose\s*\("), src);
+        Assert.Contains("_pty.Dispose", src);
+    }
+}

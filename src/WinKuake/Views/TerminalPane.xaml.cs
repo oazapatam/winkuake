@@ -152,7 +152,10 @@ public partial class TerminalPane : UserControl
     {
         InitializeComponent();
         Loaded += OnLoaded;
-        Unloaded += OnUnloaded;
+        // No suscribimos Unloaded → Dispose: WPF dispara Unloaded en cualquier
+        // reparenting (p.ej. al hacer split, el pane existente se mueve a un
+        // sub-slot del nuevo Grid). Cleanup explícito vía Dispose() desde
+        // TerminalControl.CloseInternal / RestoreLayout cubre los casos reales.
         _pty.OutputReceived += OnPtyOutput;
         // El click dentro del pane lo marca como activo dentro de su split.
         PreviewMouseDown += (_, _) => FocusReceived?.Invoke();
@@ -409,8 +412,6 @@ public partial class TerminalPane : UserControl
         var payload = $"{{\"type\":\"config\",\"scrollback\":{scrollback},\"fontSize\":{fontSize},\"theme\":{theme}}}";
         WebView.CoreWebView2?.PostWebMessageAsJson(payload);
     }
-
-    private void OnUnloaded(object sender, RoutedEventArgs e) => _pty.Dispose();
 
     public void Dispose()
     {
