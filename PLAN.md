@@ -190,7 +190,16 @@ Pivotamos de embeber `wt.exe` (chrome no se podía ocultar, clase de ventana cam
 - [x] **Atajos de split más robustos**: además de `Alt+Shift+=` / `Alt+Shift+-`, ahora también reconocen `Ctrl+Shift+D` / `Ctrl+Shift+E` (estilo wt) y detección por `ev.key` para layouts de teclado no-US.
 - [x] **Plan auditado**: marcadas Fases 1 y 2 como completadas (estaban con `[ ]` aunque las features siempre estuvieron implementadas).
 
-## Fase 16 — Backlog
+## Fase 16 — Bug fixes + auditoría paralela (2 agentes)  ✅
+
+- [x] **String "Configurar Yakuake…" → "Configurar WinKuake…"** en el menú ≡. (Master, antes del lanzamiento de agentes).
+- [x] **CLAUDE.md**: nueva sección "Desarrollo en paralelo con agentes" con reglas para usar `isolation=worktree`, agrupar features por archivos disjuntos, mergear ordenado y un commit final.
+- [x] **Agente "Auditoría persistencia"** encontró el bug raíz: `SettingsWindow.Clone()` omitía `LastSessionTabs` y `Workspaces`. Cada vez que se abría Configuración y se guardaba, **los workspaces guardados se borraban del disco** (`LastSessionTabs` también se vaciaba pero se restablecía al cerrar la app via `OnClosed.SnapshotCurrentSessions()`). Fix: `AppSettings.DeepClone()` movido al modelo (con `DeepClone` simétrico en `PersistedTab`, `PersistedSplitNode`, `Workspace`, `TerminalThemeColors`); SettingsWindow delega a éste. 9 tests nuevos cubren cada colección + roundtrip end-to-end disco real.
+- [x] **Agente "Auditoría Fase 1"** verificó cada item de la fase, encontró un único gap: `Ctrl+Shift+V` pegaba texto crudo al PTY (rompía multilínea con bracketed paste). Cambiado a `term.paste(t)` para envolver con `ESC[200~…ESC[201~`. 34 tests de regresión textual sobre `terminal.html` (existencia de cada `<script src>`, instanciación de addons, theme VSCode Dark+, atajos C/V/F/L/zoom, overlay search).
+
+**Total tras merge**: 217 tests verdes, build limpio.
+
+## Fase 17 — Backlog
 - Sincronizar settings vía GitHub Gist.
 - Soporte de SSH/PuTTY integrado (perfil con `ssh user@host`).
 - Animación entre cambios de tab.

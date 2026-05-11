@@ -196,9 +196,13 @@
       return true;
     }
     // Ctrl+Shift+V: pegar
+    // Usamos term.paste() en vez de postear directo al PTY: así xterm envuelve
+    // el texto con ESC[200~...ESC[201~ cuando el shell tiene bracketed paste
+    // activo (default en bash/zsh/pwsh modernos), evitando que líneas pegadas
+    // se ejecuten como comandos sueltos.
     if (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyV') {
       navigator.clipboard.readText().then(t => {
-        if (t) postToHost({ type: 'in', data: t });
+        if (t) term.paste(t);
       }).catch(()=>{});
       return false;
     }

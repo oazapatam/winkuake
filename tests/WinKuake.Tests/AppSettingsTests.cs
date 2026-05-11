@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using WinKuake.Models;
@@ -348,5 +349,271 @@ public class AppSettingsTests
         Assert.Equal(2, dst.CustomKeybindings.Count);
         Assert.Equal("Ctrl+Alt+Space", dst.CustomKeybindings["Hotkey"]);
         Assert.Equal("Ctrl+T", dst.CustomKeybindings["NewTab"]);
+    }
+
+    // -- DeepClone (regresión: el diálogo Settings perdía LastSessionTabs / Workspaces) ----
+
+    /// <summary>
+    /// AppSettings con TODOS los campos editables modificados (sin defaults).
+    /// Útil para detectar regresiones donde un campo nuevo no se persiste.
+    /// </summary>
+    internal static AppSettings FullyPopulatedSettings() => new()
+    {
+        HotkeyModifiers     = new() { "Ctrl", "Alt", "Shift", "Win" },
+        HotkeyKey           = "OemTilde",
+        HeightRatio         = 0.77,
+        WidthRatio          = 0.66,
+        Opacity             = 0.83,
+        DefaultProfile      = "Ubuntu",
+        AutoHideOnFocusLost = true,
+        StartWithWindows    = true,
+        AnimationMs         = 333,
+        ScrollbackLines     = 75000,
+        TerminalThemeName   = "Custom",
+        TerminalFontSize    = 17,
+        MonitorIndex        = 2,
+        ChromeBackgroundHex = "#0A0A0A",
+        ChromeBorderHex     = "#1B1B1B",
+        ChromeForegroundHex = "#FAFAFA",
+        AccentHex           = "#FF8800",
+        UserSnippets        = new()
+        {
+            new UserSnippet { Name = "build", Command = "make -j" },
+            new UserSnippet { Name = "logs",  Command = "tail -F {cwd}/app.log" },
+        },
+        LastSessionTabs = new()
+        {
+            new PersistedTab { ProfileGuid = "{abc}", ProfileName = "Ubuntu", Cwd = @"C:\code", IsPinned = true, CustomLabel = "dev" },
+            new PersistedTab
+            {
+                ProfileName = "split-root",
+                Layout = new PersistedSplitNode
+                {
+                    Orientation = "Vertical",
+                    First  = new PersistedSplitNode { ProfileName = "A", Cwd = @"C:\a" },
+                    Second = new PersistedSplitNode { ProfileName = "B" }
+                }
+            }
+        },
+        Workspaces = new()
+        {
+            new Workspace
+            {
+                Name = "dev",
+                Tabs = new() { new PersistedTab { ProfileName = "Ubuntu", Cwd = @"C:\code" } }
+            }
+        },
+        CustomTerminalTheme = new TerminalThemeColors
+        {
+            Name = "MiTema",
+            Background = "#101010", Foreground = "#fefefe", Cursor = "#ff0000",
+            Black = "#010101", Red = "#020202", Green = "#030303", Yellow = "#040404",
+            Blue = "#050505", Magenta = "#060606", Cyan = "#070707", White = "#080808",
+            BrightBlack = "#0a0a0a", BrightRed = "#0b0b0b", BrightGreen = "#0c0c0c",
+            BrightYellow = "#0d0d0d", BrightBlue = "#0e0e0e", BrightMagenta = "#0f0f0f",
+            BrightCyan = "#101010", BrightWhite = "#111110",
+        },
+        CustomKeybindings = new()
+        {
+            ["Hotkey"] = "Ctrl+Alt+Space",
+            ["NewTab"] = "Ctrl+T",
+        },
+    };
+
+    [Fact]
+    public void DeepClone_PreservesAllScalarFields()
+    {
+        var src = FullyPopulatedSettings();
+        var copy = src.DeepClone();
+
+        Assert.Equal(src.HotkeyModifiers, copy.HotkeyModifiers);
+        Assert.Equal(src.HotkeyKey, copy.HotkeyKey);
+        Assert.Equal(src.HeightRatio, copy.HeightRatio);
+        Assert.Equal(src.WidthRatio, copy.WidthRatio);
+        Assert.Equal(src.Opacity, copy.Opacity);
+        Assert.Equal(src.DefaultProfile, copy.DefaultProfile);
+        Assert.Equal(src.AutoHideOnFocusLost, copy.AutoHideOnFocusLost);
+        Assert.Equal(src.StartWithWindows, copy.StartWithWindows);
+        Assert.Equal(src.AnimationMs, copy.AnimationMs);
+        Assert.Equal(src.ScrollbackLines, copy.ScrollbackLines);
+        Assert.Equal(src.TerminalThemeName, copy.TerminalThemeName);
+        Assert.Equal(src.TerminalFontSize, copy.TerminalFontSize);
+        Assert.Equal(src.MonitorIndex, copy.MonitorIndex);
+        Assert.Equal(src.ChromeBackgroundHex, copy.ChromeBackgroundHex);
+        Assert.Equal(src.ChromeBorderHex, copy.ChromeBorderHex);
+        Assert.Equal(src.ChromeForegroundHex, copy.ChromeForegroundHex);
+        Assert.Equal(src.AccentHex, copy.AccentHex);
+    }
+
+    [Fact]
+    public void DeepClone_PreservesLastSessionTabs()
+    {
+        // Regresión: SettingsWindow.Clone NO copiaba LastSessionTabs, así que abrir
+        // y guardar Settings borraba las pestañas persistidas hasta el próximo cierre.
+        var src = new AppSettings
+        {
+            LastSessionTabs = new()
+            {
+                new PersistedTab { ProfileGuid = "{abc}", ProfileName = "Ubuntu", Cwd = @"C:\code", IsPinned = true, CustomLabel = "dev" },
+                new PersistedTab { ProfileName = "pwsh" },
+            }
+        };
+        var copy = src.DeepClone();
+        Assert.Equal(2, copy.LastSessionTabs.Count);
+        Assert.Equal("Ubuntu", copy.LastSessionTabs[0].ProfileName);
+        Assert.Equal(@"C:\code", copy.LastSessionTabs[0].Cwd);
+        Assert.True(copy.LastSessionTabs[0].IsPinned);
+        Assert.Equal("dev", copy.LastSessionTabs[0].CustomLabel);
+        Assert.Equal("pwsh", copy.LastSessionTabs[1].ProfileName);
+    }
+
+    [Fact]
+    public void DeepClone_PreservesWorkspaces()
+    {
+        // Regresión: el bug más visible — guardar Settings borraba todos los workspaces.
+        var src = new AppSettings
+        {
+            Workspaces = new()
+            {
+                new Workspace
+                {
+                    Name = "dev",
+                    Tabs = new() { new PersistedTab { ProfileName = "Ubuntu", Cwd = @"C:\code" } }
+                },
+                new Workspace
+                {
+                    Name = "ops",
+                    Tabs = new() { new PersistedTab { ProfileName = "pwsh" } }
+                },
+            }
+        };
+        var copy = src.DeepClone();
+        Assert.Equal(2, copy.Workspaces.Count);
+        Assert.Equal("dev", copy.Workspaces[0].Name);
+        Assert.Single(copy.Workspaces[0].Tabs);
+        Assert.Equal("Ubuntu", copy.Workspaces[0].Tabs[0].ProfileName);
+        Assert.Equal(@"C:\code", copy.Workspaces[0].Tabs[0].Cwd);
+        Assert.Equal("ops", copy.Workspaces[1].Name);
+    }
+
+    [Fact]
+    public void DeepClone_PreservesUserSnippets()
+    {
+        var src = new AppSettings
+        {
+            UserSnippets = new()
+            {
+                new UserSnippet { Name = "build", Command = "make -j" },
+                new UserSnippet { Name = "logs",  Command = "tail -F log" },
+            }
+        };
+        var copy = src.DeepClone();
+        Assert.Equal(2, copy.UserSnippets.Count);
+        Assert.Equal("build", copy.UserSnippets[0].Name);
+        Assert.Equal("make -j", copy.UserSnippets[0].Command);
+    }
+
+    [Fact]
+    public void DeepClone_PreservesCustomKeybindings()
+    {
+        var src = new AppSettings
+        {
+            CustomKeybindings = new Dictionary<string, string>
+            {
+                ["Hotkey"] = "Ctrl+Alt+Space",
+                ["NewTab"] = "Ctrl+T",
+            }
+        };
+        var copy = src.DeepClone();
+        Assert.Equal(2, copy.CustomKeybindings.Count);
+        Assert.Equal("Ctrl+Alt+Space", copy.CustomKeybindings["Hotkey"]);
+        Assert.Equal("Ctrl+T", copy.CustomKeybindings["NewTab"]);
+    }
+
+    [Fact]
+    public void DeepClone_PreservesCustomTerminalTheme()
+    {
+        var src = new AppSettings
+        {
+            TerminalThemeName = "Custom",
+            CustomTerminalTheme = new TerminalThemeColors
+            {
+                Name = "MiTema",
+                Background = "#101010", Foreground = "#fefefe", Cursor = "#ff0000",
+                Black = "#010101", Red = "#020202", Green = "#030303", Yellow = "#040404",
+                Blue = "#050505", Magenta = "#060606", Cyan = "#070707", White = "#080808",
+                BrightBlack = "#0a0a0a", BrightRed = "#0b0b0b", BrightGreen = "#0c0c0c",
+                BrightYellow = "#0d0d0d", BrightBlue = "#0e0e0e", BrightMagenta = "#0f0f0f",
+                BrightCyan = "#101010", BrightWhite = "#111110",
+            }
+        };
+        var copy = src.DeepClone();
+        Assert.NotNull(copy.CustomTerminalTheme);
+        Assert.Equal("MiTema", copy.CustomTerminalTheme!.Name);
+        Assert.Equal("#101010", copy.CustomTerminalTheme.Background);
+        Assert.Equal("#111110", copy.CustomTerminalTheme.BrightWhite);
+    }
+
+    [Fact]
+    public void DeepClone_PreservesSplitTreeLayout()
+    {
+        var src = new AppSettings
+        {
+            LastSessionTabs = new()
+            {
+                new PersistedTab
+                {
+                    ProfileName = "root",
+                    Layout = new PersistedSplitNode
+                    {
+                        Orientation = "Vertical",
+                        First  = new PersistedSplitNode { ProfileName = "A", Cwd = @"C:\a" },
+                        Second = new PersistedSplitNode
+                        {
+                            Orientation = "Horizontal",
+                            First  = new PersistedSplitNode { ProfileName = "B" },
+                            Second = new PersistedSplitNode { ProfileName = "C" }
+                        }
+                    }
+                }
+            }
+        };
+        var copy = src.DeepClone();
+        var layout = copy.LastSessionTabs[0].Layout;
+        Assert.NotNull(layout);
+        Assert.Equal("Vertical", layout!.Orientation);
+        Assert.Equal("A", layout.First!.ProfileName);
+        Assert.Equal(@"C:\a", layout.First.Cwd);
+        Assert.Equal("Horizontal", layout.Second!.Orientation);
+        Assert.Equal("B", layout.Second.First!.ProfileName);
+        Assert.Equal("C", layout.Second.Second!.ProfileName);
+    }
+
+    [Fact]
+    public void DeepClone_ReturnsIndependentCopy()
+    {
+        // Mutar el clon NO debe afectar al original (verifica que las colecciones
+        // sean nuevas, no referencias compartidas).
+        var src = new AppSettings
+        {
+            HotkeyModifiers = new() { "Ctrl" },
+            UserSnippets    = new() { new UserSnippet { Name = "a", Command = "b" } },
+            Workspaces      = new() { new Workspace { Name = "ws1" } },
+            LastSessionTabs = new() { new PersistedTab { ProfileName = "t1" } },
+            CustomKeybindings = new() { ["x"] = "y" },
+        };
+        var copy = src.DeepClone();
+
+        copy.HotkeyModifiers.Add("Alt");
+        copy.UserSnippets[0].Name = "modified";
+        copy.Workspaces[0].Name = "ws-modified";
+        copy.LastSessionTabs[0].ProfileName = "t1-modified";
+        copy.CustomKeybindings["x"] = "z";
+
+        Assert.Single(src.HotkeyModifiers);
+        Assert.Equal("a", src.UserSnippets[0].Name);
+        Assert.Equal("ws1", src.Workspaces[0].Name);
+        Assert.Equal("t1", src.LastSessionTabs[0].ProfileName);
+        Assert.Equal("y", src.CustomKeybindings["x"]);
     }
 }

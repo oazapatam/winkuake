@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace WinKuake.Models;
 
@@ -83,6 +84,37 @@ public class AppSettings
     /// (p.ej. "NewTab" → "Ctrl+Shift+T"). Aún no se aplican en runtime.
     /// </summary>
     public Dictionary<string, string> CustomKeybindings { get; set; } = new();
+
+    /// <summary>
+    /// Copia profunda de todos los campos. Necesaria para que el diálogo de
+    /// configuración pueda editar un duplicado y descartar cambios al cancelar
+    /// sin perder colecciones que no edita (LastSessionTabs, Workspaces...).
+    /// </summary>
+    public AppSettings DeepClone() => new()
+    {
+        HotkeyModifiers     = new List<string>(HotkeyModifiers),
+        HotkeyKey           = HotkeyKey,
+        HeightRatio         = HeightRatio,
+        WidthRatio          = WidthRatio,
+        Opacity             = Opacity,
+        DefaultProfile      = DefaultProfile,
+        AutoHideOnFocusLost = AutoHideOnFocusLost,
+        StartWithWindows    = StartWithWindows,
+        AnimationMs         = AnimationMs,
+        ScrollbackLines     = ScrollbackLines,
+        TerminalThemeName   = TerminalThemeName,
+        TerminalFontSize    = TerminalFontSize,
+        MonitorIndex        = MonitorIndex,
+        ChromeBackgroundHex = ChromeBackgroundHex,
+        ChromeBorderHex     = ChromeBorderHex,
+        ChromeForegroundHex = ChromeForegroundHex,
+        AccentHex           = AccentHex,
+        UserSnippets        = UserSnippets.Select(s => new UserSnippet { Name = s.Name, Command = s.Command }).ToList(),
+        LastSessionTabs     = LastSessionTabs.Select(t => t.DeepClone()).ToList(),
+        Workspaces          = Workspaces.Select(w => w.DeepClone()).ToList(),
+        CustomTerminalTheme = CustomTerminalTheme?.DeepClone(),
+        CustomKeybindings   = new Dictionary<string, string>(CustomKeybindings),
+    };
 }
 
 /// <summary>
@@ -111,6 +143,18 @@ public class TerminalThemeColors
     public string BrightMagenta { get; set; } = "#000000";
     public string BrightCyan { get; set; } = "#000000";
     public string BrightWhite { get; set; } = "#000000";
+
+    public TerminalThemeColors DeepClone() => new()
+    {
+        Name = Name,
+        Background = Background, Foreground = Foreground, Cursor = Cursor,
+        Black = Black, Red = Red, Green = Green, Yellow = Yellow,
+        Blue = Blue, Magenta = Magenta, Cyan = Cyan, White = White,
+        BrightBlack = BrightBlack, BrightRed = BrightRed,
+        BrightGreen = BrightGreen, BrightYellow = BrightYellow,
+        BrightBlue = BrightBlue, BrightMagenta = BrightMagenta,
+        BrightCyan = BrightCyan, BrightWhite = BrightWhite,
+    };
 }
 
 /// <summary>POCO serializable para snippets del usuario.</summary>
@@ -135,6 +179,16 @@ public class PersistedTab
     public bool IsPinned { get; set; }
     /// <summary>Árbol de splits dentro de la tab. Null si la tab no tiene splits.</summary>
     public PersistedSplitNode? Layout { get; set; }
+
+    public PersistedTab DeepClone() => new()
+    {
+        ProfileGuid = ProfileGuid,
+        ProfileName = ProfileName,
+        Cwd = Cwd,
+        CustomLabel = CustomLabel,
+        IsPinned = IsPinned,
+        Layout = Layout?.DeepClone(),
+    };
 }
 
 /// <summary>
@@ -153,6 +207,16 @@ public class PersistedSplitNode
     public string? ProfileGuid { get; set; }
     public string? ProfileName { get; set; }
     public string? Cwd { get; set; }
+
+    public PersistedSplitNode DeepClone() => new()
+    {
+        Orientation = Orientation,
+        First = First?.DeepClone(),
+        Second = Second?.DeepClone(),
+        ProfileGuid = ProfileGuid,
+        ProfileName = ProfileName,
+        Cwd = Cwd,
+    };
 }
 
 /// <summary>Workspace: lista de tabs nombrada que el usuario puede guardar y cargar.</summary>
@@ -160,4 +224,10 @@ public class Workspace
 {
     public string Name { get; set; } = "";
     public List<PersistedTab> Tabs { get; set; } = new();
+
+    public Workspace DeepClone() => new()
+    {
+        Name = Name,
+        Tabs = Tabs.Select(t => t.DeepClone()).ToList(),
+    };
 }

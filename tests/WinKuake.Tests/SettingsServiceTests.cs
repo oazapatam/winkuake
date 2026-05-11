@@ -124,4 +124,70 @@ public class SettingsServiceTests : IDisposable
         Assert.Equal("Logs", loaded.UserSnippets[1].Name);
         Assert.Equal("tail -F {cwd}/log", loaded.UserSnippets[1].Command);
     }
+
+    [Fact]
+    public void SettingsService_PersistsCompleteAppSettings_Roundtrip()
+    {
+        // Sanity check end-to-end: TODOS los campos persistibles deben sobrevivir
+        // un ciclo Save → Load contra el disco real, no solo el JSON in-memory.
+        var src = AppSettingsTests.FullyPopulatedSettings();
+
+        SettingsService.Save(src);
+        var dst = SettingsService.Load();
+
+        Assert.Equal(src.HotkeyModifiers, dst.HotkeyModifiers);
+        Assert.Equal(src.HotkeyKey, dst.HotkeyKey);
+        Assert.Equal(src.HeightRatio, dst.HeightRatio);
+        Assert.Equal(src.WidthRatio, dst.WidthRatio);
+        Assert.Equal(src.Opacity, dst.Opacity);
+        Assert.Equal(src.DefaultProfile, dst.DefaultProfile);
+        Assert.Equal(src.AutoHideOnFocusLost, dst.AutoHideOnFocusLost);
+        Assert.Equal(src.StartWithWindows, dst.StartWithWindows);
+        Assert.Equal(src.AnimationMs, dst.AnimationMs);
+        Assert.Equal(src.ScrollbackLines, dst.ScrollbackLines);
+        Assert.Equal(src.TerminalThemeName, dst.TerminalThemeName);
+        Assert.Equal(src.TerminalFontSize, dst.TerminalFontSize);
+        Assert.Equal(src.MonitorIndex, dst.MonitorIndex);
+        Assert.Equal(src.ChromeBackgroundHex, dst.ChromeBackgroundHex);
+        Assert.Equal(src.ChromeBorderHex, dst.ChromeBorderHex);
+        Assert.Equal(src.ChromeForegroundHex, dst.ChromeForegroundHex);
+        Assert.Equal(src.AccentHex, dst.AccentHex);
+
+        Assert.Equal(src.UserSnippets.Count, dst.UserSnippets.Count);
+        for (var i = 0; i < src.UserSnippets.Count; i++)
+        {
+            Assert.Equal(src.UserSnippets[i].Name,    dst.UserSnippets[i].Name);
+            Assert.Equal(src.UserSnippets[i].Command, dst.UserSnippets[i].Command);
+        }
+
+        Assert.Equal(src.LastSessionTabs.Count, dst.LastSessionTabs.Count);
+        for (var i = 0; i < src.LastSessionTabs.Count; i++)
+        {
+            Assert.Equal(src.LastSessionTabs[i].ProfileGuid, dst.LastSessionTabs[i].ProfileGuid);
+            Assert.Equal(src.LastSessionTabs[i].ProfileName, dst.LastSessionTabs[i].ProfileName);
+            Assert.Equal(src.LastSessionTabs[i].Cwd,         dst.LastSessionTabs[i].Cwd);
+            Assert.Equal(src.LastSessionTabs[i].IsPinned,    dst.LastSessionTabs[i].IsPinned);
+            Assert.Equal(src.LastSessionTabs[i].CustomLabel, dst.LastSessionTabs[i].CustomLabel);
+        }
+        // Verificar el árbol de splits del segundo tab.
+        var layout = dst.LastSessionTabs[1].Layout;
+        Assert.NotNull(layout);
+        Assert.Equal("Vertical", layout!.Orientation);
+        Assert.Equal("A", layout.First!.ProfileName);
+        Assert.Equal(@"C:\a", layout.First.Cwd);
+        Assert.Equal("B", layout.Second!.ProfileName);
+
+        Assert.Equal(src.Workspaces.Count, dst.Workspaces.Count);
+        Assert.Equal("dev", dst.Workspaces[0].Name);
+        Assert.Equal(@"C:\code", dst.Workspaces[0].Tabs[0].Cwd);
+
+        Assert.NotNull(dst.CustomTerminalTheme);
+        Assert.Equal(src.CustomTerminalTheme!.Name, dst.CustomTerminalTheme!.Name);
+        Assert.Equal(src.CustomTerminalTheme.Background, dst.CustomTerminalTheme.Background);
+        Assert.Equal(src.CustomTerminalTheme.BrightWhite, dst.CustomTerminalTheme.BrightWhite);
+
+        Assert.Equal(src.CustomKeybindings.Count, dst.CustomKeybindings.Count);
+        Assert.Equal("Ctrl+Alt+Space", dst.CustomKeybindings["Hotkey"]);
+        Assert.Equal("Ctrl+T",         dst.CustomKeybindings["NewTab"]);
+    }
 }

@@ -170,41 +170,9 @@ public partial class SettingsWindow : Window
     private static bool HasMod(AppSettings s, string mod) =>
         s.HotkeyModifiers.Any(m => string.Equals(m, mod, StringComparison.OrdinalIgnoreCase));
 
-    private static AppSettings Clone(AppSettings s) => new()
-    {
-        HotkeyModifiers     = new List<string>(s.HotkeyModifiers),
-        HotkeyKey           = s.HotkeyKey,
-        HeightRatio         = s.HeightRatio,
-        WidthRatio          = s.WidthRatio,
-        Opacity             = s.Opacity,
-        DefaultProfile      = s.DefaultProfile,
-        AutoHideOnFocusLost = s.AutoHideOnFocusLost,
-        StartWithWindows    = s.StartWithWindows,
-        AnimationMs         = s.AnimationMs,
-        MonitorIndex        = s.MonitorIndex,
-        ChromeBackgroundHex = s.ChromeBackgroundHex,
-        ChromeBorderHex     = s.ChromeBorderHex,
-        ChromeForegroundHex = s.ChromeForegroundHex,
-        AccentHex           = s.AccentHex,
-        ScrollbackLines     = s.ScrollbackLines,
-        TerminalThemeName   = s.TerminalThemeName,
-        TerminalFontSize    = s.TerminalFontSize,
-        UserSnippets        = s.UserSnippets.Select(x => new UserSnippet { Name = x.Name, Command = x.Command }).ToList(),
-        CustomTerminalTheme = s.CustomTerminalTheme is null ? null : CloneCustomColors(s.CustomTerminalTheme),
-        CustomKeybindings   = new Dictionary<string, string>(s.CustomKeybindings),
-    };
-
-    private static TerminalThemeColors CloneCustomColors(TerminalThemeColors c) => new()
-    {
-        Name = c.Name,
-        Background = c.Background, Foreground = c.Foreground, Cursor = c.Cursor,
-        Black = c.Black, Red = c.Red, Green = c.Green, Yellow = c.Yellow,
-        Blue = c.Blue, Magenta = c.Magenta, Cyan = c.Cyan, White = c.White,
-        BrightBlack = c.BrightBlack, BrightRed = c.BrightRed,
-        BrightGreen = c.BrightGreen, BrightYellow = c.BrightYellow,
-        BrightBlue = c.BrightBlue, BrightMagenta = c.BrightMagenta,
-        BrightCyan = c.BrightCyan, BrightWhite = c.BrightWhite,
-    };
+    // Delegamos en el modelo: así LastSessionTabs y Workspaces (que el diálogo
+    // no edita pero sí tiene que preservar al guardar) no se pierden.
+    private static AppSettings Clone(AppSettings s) => s.DeepClone();
 
     private void SelectScrollbackItem(int value)
     {
