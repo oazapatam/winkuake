@@ -6,7 +6,35 @@
              Focusable="True">
     <Grid>
         <wv2:WebView2 x:Name="WebView" />
+
+        <!-- Borde indicador de pane activo -->
         <Border x:Name="ActiveOverlay" BorderThickness="0,2,0,0"
                 BorderBrush="Transparent" IsHitTestVisible="False" />
+
+        <!-- Botón X arriba a la derecha, solo visible cuando se puede cerrar el pane.
+             Su opacidad sube al hover sobre el pane. -->
+        <Button x:Name="ClosePaneButton"
+                HorizontalAlignment="Right" VerticalAlignment="Top"
+                Margin="0,4,8,0" Padding="6,2"
+                Background="#80000000" Foreground="#D04848"
+                BorderThickness="0" FontSize="12"
+                Content="✕"
+                ToolTip="Cerrar este pane (Ctrl+Shift+W)"
+                Visibility="Collapsed"
+                Cursor="Hand"
+                Click="ClosePaneButton_Click">
+            <Button.Style>
+                <Style TargetType="Button">
+                    <Setter Property="Opacity" Value="0.5" />
+                    <Style.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Opacity" Value="1" />
+                            <Setter Property="Background" Value="#A0FF0000" />
+                            <Setter Property="Foreground" Value="White" />
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </Button.Style>
+        </Button>
     </Grid>
 </UserControl>

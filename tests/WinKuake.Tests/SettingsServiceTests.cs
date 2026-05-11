@@ -86,4 +86,42 @@ public class SettingsServiceTests : IDisposable
         var loaded = SettingsService.Load();
         Assert.Equal("F12", loaded.HotkeyKey); // fallback a defaults
     }
+
+    [Fact]
+    public void Save_ThenLoad_PersistsTerminalSettings()
+    {
+        var s = new AppSettings
+        {
+            TerminalThemeName = "Dracula",
+            TerminalFontSize  = 18,
+            ScrollbackLines   = 50000,
+        };
+        SettingsService.Save(s);
+        var loaded = SettingsService.Load();
+
+        Assert.Equal("Dracula", loaded.TerminalThemeName);
+        Assert.Equal(18, loaded.TerminalFontSize);
+        Assert.Equal(50000, loaded.ScrollbackLines);
+    }
+
+    [Fact]
+    public void Save_ThenLoad_PersistsUserSnippets()
+    {
+        var s = new AppSettings
+        {
+            UserSnippets = new()
+            {
+                new() { Name = "Build", Command = "make -j" },
+                new() { Name = "Logs",  Command = "tail -F {cwd}/log" },
+            }
+        };
+        SettingsService.Save(s);
+        var loaded = SettingsService.Load();
+
+        Assert.Equal(2, loaded.UserSnippets.Count);
+        Assert.Equal("Build", loaded.UserSnippets[0].Name);
+        Assert.Equal("make -j", loaded.UserSnippets[0].Command);
+        Assert.Equal("Logs", loaded.UserSnippets[1].Name);
+        Assert.Equal("tail -F {cwd}/log", loaded.UserSnippets[1].Command);
+    }
 }

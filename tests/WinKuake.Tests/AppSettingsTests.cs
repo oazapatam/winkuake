@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text.Json;
 using WinKuake.Models;
+using WinKuake.Services;
 using Xunit;
 
 namespace WinKuake.Tests;
@@ -91,6 +92,62 @@ public class AppSettingsTests
         var dst  = JsonSerializer.Deserialize<AppSettings>(json, opts)!;
         Assert.Equal(50000, dst.ScrollbackLines);
     }
+
+    [Fact]
+    public void AllFields_PersistThroughJson()
+    {
+        var src = new AppSettings
+        {
+            HotkeyModifiers     = new() { "Ctrl", "Shift" },
+            HotkeyKey           = "OemTilde",
+            HeightRatio         = 0.66,
+            WidthRatio          = 0.88,
+            Opacity             = 0.91,
+            DefaultProfile      = "Ubuntu",
+            AutoHideOnFocusLost = true,
+            StartWithWindows    = true,
+            AnimationMs         = 250,
+            ScrollbackLines     = 100000,
+            TerminalThemeName   = "Dracula",
+            TerminalFontSize    = 16,
+            MonitorIndex        = 2,
+            ChromeBackgroundHex = "#0A0A0A",
+            ChromeBorderHex     = "#222222",
+            ChromeForegroundHex = "#EEEEEE",
+            AccentHex           = "#FF8800",
+            UserSnippets        = new()
+            {
+                new UserSnippet { Name = "Mi build", Command = "make all" },
+                new UserSnippet { Name = "Logs", Command = "tail -f {cwd}/log" },
+            }
+        };
+        var opts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var dst  = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(src, opts), opts)!;
+
+        Assert.Equal(src.HotkeyModifiers, dst.HotkeyModifiers);
+        Assert.Equal(src.HotkeyKey, dst.HotkeyKey);
+        Assert.Equal(src.HeightRatio, dst.HeightRatio);
+        Assert.Equal(src.WidthRatio, dst.WidthRatio);
+        Assert.Equal(src.Opacity, dst.Opacity);
+        Assert.Equal(src.DefaultProfile, dst.DefaultProfile);
+        Assert.Equal(src.AutoHideOnFocusLost, dst.AutoHideOnFocusLost);
+        Assert.Equal(src.StartWithWindows, dst.StartWithWindows);
+        Assert.Equal(src.AnimationMs, dst.AnimationMs);
+        Assert.Equal(src.ScrollbackLines, dst.ScrollbackLines);
+        Assert.Equal(src.TerminalThemeName, dst.TerminalThemeName);
+        Assert.Equal(src.TerminalFontSize, dst.TerminalFontSize);
+        Assert.Equal(src.MonitorIndex, dst.MonitorIndex);
+        Assert.Equal(src.ChromeBackgroundHex, dst.ChromeBackgroundHex);
+        Assert.Equal(src.ChromeBorderHex, dst.ChromeBorderHex);
+        Assert.Equal(src.ChromeForegroundHex, dst.ChromeForegroundHex);
+        Assert.Equal(src.AccentHex, dst.AccentHex);
+        Assert.Equal(2, dst.UserSnippets.Count);
+        Assert.Equal("Mi build", dst.UserSnippets[0].Name);
+        Assert.Equal("make all", dst.UserSnippets[0].Command);
+        Assert.Equal("Logs", dst.UserSnippets[1].Name);
+        Assert.Equal("tail -f {cwd}/log", dst.UserSnippets[1].Command);
+    }
+
 
     [Fact]
     public void Json_LoadingPartialFile_FillsMissingWithDefaults()

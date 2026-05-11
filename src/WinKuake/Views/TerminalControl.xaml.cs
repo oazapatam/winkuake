@@ -173,12 +173,24 @@ public partial class TerminalControl : UserControl
         var s = new GridSplitter
         {
             Background = brush,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment   = VerticalAlignment.Stretch,
             ShowsPreview = false
         };
-        if (orientation == Orientation.Vertical) s.Width = 4;
-        else                                     s.Height = 4;
+        if (orientation == Orientation.Vertical)
+        {
+            // Splitter entre columnas → barra vertical.
+            s.Width = 4;
+            s.HorizontalAlignment = HorizontalAlignment.Center;
+            s.VerticalAlignment   = VerticalAlignment.Stretch;
+            s.ResizeDirection     = GridResizeDirection.Columns;
+        }
+        else
+        {
+            // Splitter entre filas → barra horizontal.
+            s.Height = 4;
+            s.HorizontalAlignment = HorizontalAlignment.Stretch;
+            s.VerticalAlignment   = VerticalAlignment.Center;
+            s.ResizeDirection     = GridResizeDirection.Rows;
+        }
         return s;
     }
 
@@ -248,7 +260,12 @@ public partial class TerminalControl : UserControl
     private void SetActivePane(TerminalPane pane)
     {
         _activePane = pane;
-        foreach (var p in _panes) p.SetActiveVisuals(p == pane);
+        var hasSplit = _panes.Count > 1;
+        foreach (var p in _panes)
+        {
+            p.SetActiveVisuals(p == pane);
+            p.ShowCloseButton(hasSplit);
+        }
         pane.Focus();
     }
 

@@ -339,6 +339,12 @@ public partial class MainWindow : Window
 
     private void SplitVertical_Click(object sender, RoutedEventArgs e) => ActiveControl()?.SplitVertical();
     private void SplitHorizontal_Click(object sender, RoutedEventArgs e) => ActiveControl()?.SplitHorizontal();
+    private void ClosePane_Click(object sender, RoutedEventArgs e) => ActiveControl()?.CloseActivePane();
+    private void OpenPalette_Click(object sender, RoutedEventArgs e)
+    {
+        var ctrl = ActiveControl();
+        if (ctrl is not null) OpenCommandPalette(ctrl);
+    }
 
     private void CloseTab_Click(object sender, RoutedEventArgs e)
     {

@@ -22,7 +22,14 @@ public static class SettingsService
     {
         try
         {
-            if (!File.Exists(SettingsPath)) return new AppSettings();
+            if (!File.Exists(SettingsPath))
+            {
+                // Primera ejecución: persistir defaults para que el archivo
+                // exista y el usuario vea que el sistema sí guarda.
+                var defaults = new AppSettings();
+                Save(defaults);
+                return defaults;
+            }
             var json = File.ReadAllText(SettingsPath);
             return JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
         }

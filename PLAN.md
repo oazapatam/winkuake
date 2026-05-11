@@ -136,15 +136,42 @@ Pivotamos de embeber `wt.exe` (chrome no se podía ocultar, clase de ventana cam
 - [x] Variable `{date}` se expande a `yyyy-MM-dd` (date local). 1 test cubriendo.
 - [x] Snippets vacíos (name o command en blanco) se descartan al guardar.
 
-## Fase 11 — Backlog
-- Find global multi-buffer (`Ctrl+Shift+F` busca en TODOS los buffers a la vez con UI overlay).
-- Editor de paleta custom (tab adicional en Settings con preview).
-- Persistencia de splits / layout al cerrar y reabrir tab (serializar árbol).
-- Variable `{branch}` (ejecutar `git rev-parse --abbrev-ref HEAD` async y cachear).
-- Variable `{selection}` (pedir selección a xterm via `term.getSelection()`).
-- Workspaces guardables (combo de tabs + perfiles + cwds + layouts).
+## Fase 11 — Fixes de UX reportados  ✅
+- [x] **Fix split horizontal**: `GridSplitter` ahora se construye con `ResizeDirection` explícito (`Columns` para vertical, `Rows` para horizontal) y alignment correcto (Stretch + Center según orientación). Antes ambos Stretch causaba que el splitter horizontal no respondiera al drag.
+- [x] **Botón X cerrar pane**: cada pane muestra un ✕ rojo arriba a la derecha cuando es parte de un split (oculto cuando es el único). Opacidad 0.5, sube a 1.0 al hover. Click cierra ese pane.
+- [x] **Item "Cerrar pane" en menú ≡** (acceso por menú además del atajo `Ctrl+Shift+W`).
+- [x] **Item "Paleta de comandos" en menú ≡** (acceso a `Ctrl+Shift+P`).
+- [x] **Persistencia reforzada**: `SettingsService.Load` ahora crea `settings.json` con defaults la primera vez que se ejecuta la app. El usuario ve que el archivo existe en `%AppData%\WinKuake\settings.json` desde el primer arranque y puede modificarlo a mano si quiere.
+- [x] **Tests roundtrip completos**: `AllFields_PersistThroughJson` valida que TODOS los campos de AppSettings (incluyendo UserSnippets) sobreviven serialización; nuevos tests específicos para `Save_ThenLoad_PersistsTerminalSettings` y `Save_ThenLoad_PersistsUserSnippets` confirman el end-to-end con disco real.
+
+## Auditoría del plan
+
+**Implementado y validado:**
+- Motor: ConPTY + xterm.js (WebView2) + 5 addons.
+- Multi-tab con TerminalSessionsManager TDD.
+- Perfiles wt (auto-detect + WSL login shell + cwd traducido).
+- Tema xterm seleccionable (5 paletas) + fuente + scrollback configurable.
+- Splits recursivos H/V con cerrar pane.
+- Atajos: F12, Ctrl+Tab, Ctrl+Shift+1..9, PgUp/Dn, Alt+Shift+=/-, Ctrl+Shift+W/P/B/F/S/C/V/L, Ctrl++/-, Alt+arrows.
+- Drag-and-drop reorder + pin de tabs.
+- CWD en status bar (OSC 7).
+- Links a archivos clickeables.
+- Paleta de comandos con 21 defaults + user-snippets + variables `{cwd}/{home}/{user}/{date}`.
+- Broadcast input.
+- Hot-reload de wt settings.json.
+- Persistencia completa de todos los settings.
+
+**Pendiente — Fase 12:**
+- Find global multi-buffer (busca en TODOS los buffers a la vez con overlay).
+- Editor de paleta de tema custom (preview en vivo).
+- Persistencia de splits y tabs al reiniciar app (serializar árbol + commandlines).
+- Workspaces guardables (combo de tabs + perfiles + cwds + layouts, nombrados).
+- Variable `{branch}` (git async + cache).
+- Variable `{selection}` (`term.getSelection()`).
 - Auto-update vía GitHub releases.
-- Tray icon con menú contextual rápido.
+- Tray icon con menú contextual.
+- Posibilidad de configurar atajos custom (no solo el hotkey global).
+- Soporte de `--cwd <path>` argumento CLI al lanzar.
 
 ---
 

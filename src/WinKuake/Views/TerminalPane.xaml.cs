@@ -91,6 +91,17 @@ public partial class TerminalPane : UserControl
             : Brushes.Transparent;
     }
 
+    /// <summary>Muestra/oculta el botón X de cerrar pane (solo cuando hay split).</summary>
+    public void ShowCloseButton(bool show)
+    {
+        ClosePaneButton.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void ClosePaneButton_Click(object sender, RoutedEventArgs e)
+    {
+        ClosePaneRequested?.Invoke();
+    }
+
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         try { await InitializeWebViewAsync(); }
