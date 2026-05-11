@@ -68,7 +68,9 @@ Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 [Icons]
 Name: "{group}\{#AppName}";              Filename: "{app}\{#AppExeName}"
 Name: "{group}\Uninstall {#AppName}";    Filename: "{uninstallexe}"
-Name: "{commondesktop}\{#AppName}";      Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
+; {autodesktop} resuelve a {userdesktop} sin admin y a {commondesktop} con admin.
+; Si dejábamos {commondesktop} fijo, fallaba con 0x80070005 al instalar per-user.
+Name: "{autodesktop}\{#AppName}";        Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
 
 [Registry]
 ; Inicio con Windows (HKCU\...\Run) — solo si el usuario lo eligió.

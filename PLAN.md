@@ -289,7 +289,10 @@ Al primer arranque post-upgrade, si el usuario ya tiene `settings.json` con perf
 - Tamaño relativo de splitters persistido (no solo estructura).
 - Aplicar atajos custom en runtime (ahora solo se guardan).
 - UpdateService: notificación in-app cuando hay versión nueva + descargador.
-- Notificaciones del tray icon.
+- **Tray icon — mejoras de UX**:
+  - **Notificaciones balloon** vía `NotifyIcon.ShowBalloonTip`: "WinKuake started", "Update available (v0.2.0)", "Profile detected: Ubuntu". Throttle para no spam.
+  - **Indicador de estado broadcast** en el ícono mismo (overlay rojo/cyan o cambio de glyph cuando `Ctrl+Shift+B` activa broadcast en algún `TerminalControl`). Implementación: generar un segundo .ico con badge y swappear `_icon.Icon` cuando `BroadcastChanged` se dispare.
+  - **Click izquierdo simple = toggle** (hoy solo doble-click). El comportamiento Windows estándar de NotifyIcon no expone single-click directo; hacer override con `MouseClick` filtrando por `MouseButtons.Left` y debounce para distinguir de doble-click.
 - Fixes de gaps detectados en Fase 17 (ver arriba): Azure filter, watcher Preview/unpackaged, slider fuente >32, AbbreviateCwd para `\\wsl$\…`, BuildWorkspacesMenu hot-reload.
 
 ### Diseño de persistencia de árbol de splits
