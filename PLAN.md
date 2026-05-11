@@ -199,7 +199,20 @@ Pivotamos de embeber `wt.exe` (chrome no se podía ocultar, clase de ventana cam
 
 **Total tras merge**: 217 tests verdes, build limpio.
 
-## Fase 17 — Backlog
+## Fase 17 — Auditoría completa Fases 2-16 (3 agentes paralelos)  ✅
+
+Lanzados en worktrees aislados, archivos disjuntos. Cada agente verificó cada item `[x]` contra código real, escribió tests de regresión con sufijo `*AuditTests.cs`. **142 tests nuevos**, 0 bugs reales encontrados, sólo gaps cosméticos / inconsistencias suaves entre PLAN y código.
+
+- [x] **Agente A (Fases 2/WSL/3/6)** — 36 tests en 4 archivos: `WtProfileSourceAuditTests`, `WslServiceAuditTests`, `TerminalSessionsManagerAuditTests`, `ProfileWatcherAuditTests`. Cubre case-insensitive del source WSL, env-var expansion, fallback `.exe`, merge wt+WSL, filtro rancher-desktop, debounce real 300 ms del FileSystemWatcher coalesciendo writes, pin individual, ActivateAt sobre la activa, MoveActiveBy(0).
+  - Gaps detectados (no bugs): Azure Cloud Shell se marca como deshabilitado en lugar de filtrarse; FileSystemWatcher solo cubre wt-Store estable, no Preview/unpackaged; InputGestureText `Ctrl+Shift+1..9` en menú de perfiles puede confundir (activa tab N, no abre perfil N).
+- [x] **Agente B (Fases 4/5/7/14/15)** — 48 tests en 5 archivos: `TerminalThemeAuditTests`, `OscHandlerAuditTests`, `SplitNavigationAuditTests`, `LinkProviderAuditTests`, `SplitTreeAuditTests`. Cubre las 5 paletas obligatorias (unicidad, hex válido, todas las claves xterm), regex del link provider replicada en C# para Windows/Linux/relativos, roundtrip JSON árbol 4 niveles de splits, singleton `_sharedEnv` + `_envLock` (SemaphoreSlim), atajos split duales (Alt+Shift y Ctrl+Shift+D/E + `ev.key` para layouts no-US), regresión textual sobre `terminal.html` (OSC 7, registerLinkProvider, atajos Ctrl+Tab/PageUp/Down).
+  - Gaps detectados: slider de fuente capa 32 en UI aunque modelo soporta hasta 40; `AbbreviateCwd` no abrevia paths UNC `\\wsl$\…`; orientación de Grid en `SerializeSlot` se infiere por `ColumnDefinitions.Count > 0` (frágil si en el futuro alguien añade rama mixta).
+- [x] **Agente C (Fases 8/9/10/12/13)** — 58 tests en 7 archivos: `PaletteAuditTests`, `SnippetVariablesAuditTests`, `WorkspaceAuditTests`, `KeybindingAuditTests`, `GitServiceAuditTests`, `CliArgAuditTests`, `BroadcastAuditTests`. Cubre los 21 defaults exactos (familias git/docker/npm/dotnet, nombres únicos), variables case-mixed `{Branch}/{BRANCH}/{bRaNcH}`, fecha con zero-padding, selección multilínea, integration tests con `git init -b auditbranch` real, ParseArg vía reflection (`--cwd path`, `--cwd=path`, `--cwd-extended` no confunde), workspaces con árbol de splits roundtrip, KeybindingService gestos default vs plan.
+  - Gaps detectados: TrayIcon tiene ítem extra "Ocultar" no mencionado en PLAN; LoadWorkspace usa `Close` en vez de `TryCloseSession` (no respeta confirmación de pinned, probablemente intencional); `BuildWorkspacesMenu` no se reconstruye al guardar Settings (no es regresión actual porque SettingsWindow no edita workspaces).
+
+**Total post-merge: 359 tests verdes** (217 previos + 142 nuevos). Build limpio. Ningún `.cs` de `src/` modificado por los agentes — el plan estaba completo y correcto, sólo faltaba cobertura de tests defensivos.
+
+## Fase 18 — Backlog
 - Sincronizar settings vía GitHub Gist.
 - Soporte de SSH/PuTTY integrado (perfil con `ssh user@host`).
 - Animación entre cambios de tab.
@@ -207,6 +220,7 @@ Pivotamos de embeber `wt.exe` (chrome no se podía ocultar, clase de ventana cam
 - Aplicar atajos custom en runtime (ahora solo se guardan).
 - UpdateService: notificación in-app cuando hay versión nueva + descargador.
 - Notificaciones del tray icon.
+- Fixes de gaps detectados en Fase 17 (ver arriba): Azure filter, watcher Preview/unpackaged, slider fuente >32, AbbreviateCwd para `\\wsl$\…`, BuildWorkspacesMenu hot-reload.
 
 ### Diseño de persistencia de árbol de splits
 
