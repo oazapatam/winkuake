@@ -257,7 +257,12 @@ public partial class TerminalControl : UserControl
         pane.SplitHorizontalRequested += () => SplitActive(Orientation.Horizontal);
         pane.SplitVerticalRequested   += () => SplitActive(Orientation.Vertical);
         pane.ClosePaneRequested       += CloseActivePane;
-        pane.FocusReceived            += () => SetActivePane(pane);
+        // FocusReceived viene de un click o de WebView.GotFocus → el foco
+        // ya está cayendo en el WebView por la propia interacción. Si aquí
+        // llamamos a FocusTerminal() encima, pelea con el grab que hace
+        // xterm sobre su <textarea> en su propio mousedown y a veces queda
+        // sin captura de teclado. Solo actualizamos visuales.
+        pane.FocusReceived            += () => SetActivePane(pane, moveFocus: false);
         pane.FocusPaneRequested       += FocusInDirection;
         pane.OpenPaletteRequested     += () => OpenPaletteRequested?.Invoke();
         pane.ToggleBroadcastRequested += ToggleBroadcast;
@@ -409,7 +414,7 @@ public partial class TerminalControl : UserControl
         return null;
     }
 
-    private void SetActivePane(TerminalPane pane)
+    private void SetActivePane(TerminalPane pane, bool moveFocus = true)
     {
         _activePane = pane;
         var hasSplit = _panes.Count > 1;
@@ -418,7 +423,10 @@ public partial class TerminalControl : UserControl
             p.SetActiveVisuals(p == pane);
             p.ShowCloseButton(hasSplit);
         }
-        pane.Focus();
+        // moveFocus=false cuando la activación vino de un click — el WebView
+        // ya recibe foco solo por el propio click y xterm engancha su
+        // textarea en su mousedown. Forzar Focus() encima rompe ese grab.
+        if (moveFocus) pane.FocusTerminal();
     }
 
     // -- Navegación Alt+arrows ----------------------------------------------

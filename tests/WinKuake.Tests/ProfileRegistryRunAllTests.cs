@@ -104,6 +104,68 @@ public class ProfileRegistryRunAllTests
     }
 
     [Fact]
+    public void LoadAll_FiltraProfilesPersistidosBajoProgramFilesWindowsApps()
+    {
+        // Regresión: un detector previo persistió un perfil cuyo commandLine
+        // apunta a C:\Program Files\WindowsApps\... (instalación MSIX). Esa
+        // carpeta tiene ACLs estrictos: CreateProcess "tiene éxito" pero el
+        // proceso resultante no puede acceder a stdin/stdout del ConPty → la
+        // terminal queda en negro. Aunque el detector ya no los emite, los
+        // perfiles persistidos siguen ahí. LoadAll debe filtrarlos.
+        var s = new AppSettings
+        {
+            UserProfiles = new()
+            {
+                new() {
+                    Id = "msix",
+                    Name = "PowerShell 7.6.1 MSIX",
+                    CommandLine = "\"C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.6.1.0_x64__abc\\pwsh.exe\"",
+                    Hidden = false
+                },
+                new() {
+                    Id = "system",
+                    Name = "Windows PowerShell",
+                    CommandLine = "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\"",
+                    Hidden = false
+                },
+            }
+        };
+        var result = ProfileRegistry.LoadAll(s);
+        Assert.Single(result);
+        Assert.Equal("Windows PowerShell", result[0].Name);
+    }
+
+    [Fact]
+    public void LoadAll_FiltraShimEnLocalAppDataWindowsApps()
+    {
+        // El App Execution Alias en %LocalAppData%\Microsoft\WindowsApps\
+        // delega a la instalación MSIX y heredamos el mismo bug ACL → la
+        // terminal queda en negro. Filtramos cualquier path con \WindowsApps\
+        // y dejamos solo profiles ejecutables sin esa interferencia.
+        var s = new AppSettings
+        {
+            UserProfiles = new()
+            {
+                new() {
+                    Id = "shim",
+                    Name = "PowerShell shim",
+                    CommandLine = "\"C:\\Users\\andre\\AppData\\Local\\Microsoft\\WindowsApps\\pwsh.exe\"",
+                    Hidden = false
+                },
+                new() {
+                    Id = "system",
+                    Name = "Windows PowerShell",
+                    CommandLine = "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\"",
+                    Hidden = false
+                },
+            }
+        };
+        var result = ProfileRegistry.LoadAll(s);
+        Assert.Single(result);
+        Assert.Equal("Windows PowerShell", result[0].Name);
+    }
+
+    [Fact]
     public void AllDetectors_TieneLasSeisFamilias()
     {
         // Smoke: el array contiene un detector por familia (tipos exactos).

@@ -202,6 +202,52 @@ public class UserProfileTests
     }
 
     [Fact]
+    public void Registry_ResolveDefault_PrefiereProfileSimpleSobreElConArgs()
+    {
+        // Regresión: el primer "pwsh" en la lista era "Developer PowerShell for
+        // VS Community" con commandLine = `pwsh.exe -NoExit -Command "..."`.
+        // Ese perfil necesita Visual Studio Dev Shell para funcionar y a menudo
+        // queda silencioso → terminal en negro. Cuando no hay defaultId, debe
+        // preferirse un profile SIMPLE (sólo el path al ejecutable, sin args)
+        // sobre uno con flags, aunque la primera coincidencia léxica esté en
+        // un profile complejo.
+        var profiles = new List<UserProfile>
+        {
+            new() {
+                Id = "dev", Name = "Developer PowerShell for VS Community",
+                CommandLine = "pwsh.exe -NoExit -Command \"& 'C:\\Program Files\\VS\\Launch.ps1'\""
+            },
+            new() {
+                Id = "winps", Name = "Windows PowerShell",
+                CommandLine = "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\""
+            },
+        };
+        var d = ProfileRegistry.ResolveDefault(profiles, defaultId: null);
+        Assert.Equal("Windows PowerShell", d!.Name);
+    }
+
+    [Fact]
+    public void Registry_ResolveDefault_PathConArgsNoBloqueaSiNoHayMejor()
+    {
+        // Si TODOS los profiles tienen args, hay que devolver algo: caemos al
+        // heurístico clásico (primer pwsh > powershell > cmd > primero).
+        var profiles = new List<UserProfile>
+        {
+            new() {
+                Id = "wsl", Name = "Ubuntu",
+                CommandLine = "wsl.exe -d Ubuntu --shell-type login --cd ~"
+            },
+            new() {
+                Id = "git", Name = "Git Bash",
+                CommandLine = "\"C:\\Program Files\\Git\\bin\\bash.exe\" -l -i"
+            },
+        };
+        var d = ProfileRegistry.ResolveDefault(profiles, defaultId: null);
+        // Ninguno tiene pwsh/powershell/cmd → cae al `profiles[0]`.
+        Assert.Equal("Ubuntu", d!.Name);
+    }
+
+    [Fact]
     public void Registry_ResolveDefault_FallbackHeuristico_LuegoCmd()
     {
         var profiles = new List<UserProfile>

@@ -66,6 +66,59 @@ public class PwshDetectorTests
     }
 
     [Fact]
+    public void BuildProfilesFromPaths_FiltraWindowsAppsMsixPath()
+    {
+        // Regresión: where.exe pwsh.exe puede devolver
+        //   C:\Program Files\WindowsApps\Microsoft.PowerShell_X.Y.Z_x64__hash\pwsh.exe
+        // Esa instalación MSIX vive en una carpeta con ACLs restrictivos. Aunque
+        // CreateProcess "tiene éxito", el proceso resultante no puede acceder a
+        // stdin/stdout del ConPty y queda silencioso → la terminal se ve en
+        // negro porque nunca llega el prompt. Hay que filtrar esos paths para
+        // que el detector use solo las instalaciones ejecutables (Program
+        // Files\PowerShell\X, o el shim en %LocalAppData%\Microsoft\WindowsApps).
+        var paths = new[]
+        {
+            @"C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.1.0_x64__8wekyb3d8bbwe\pwsh.exe",
+            @"C:\Program Files\PowerShell\7\pwsh.exe",
+        };
+        var profiles = PwshDetector.BuildProfilesFromPaths(paths);
+        Assert.Single(profiles);
+        Assert.DoesNotContain("WindowsApps", profiles[0].CommandLine);
+    }
+
+    [Fact]
+    public void BuildProfilesFromPaths_FiltroWindowsApps_NoCuentaParaAnotarVersion()
+    {
+        // Si después de filtrar queda un solo path, el name NO debe anotar versión.
+        var paths = new[]
+        {
+            @"C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.1.0_x64__abc\pwsh.exe",
+            @"C:\Program Files\PowerShell\7\pwsh.exe",
+        };
+        var profiles = PwshDetector.BuildProfilesFromPaths(paths);
+        Assert.Single(profiles);
+        Assert.Equal("PowerShell", profiles[0].Name);
+    }
+
+    [Fact]
+    public void BuildProfilesFromPaths_FiltraShimEnLocalAppDataWindowsApps()
+    {
+        // El alias %LocalAppData%\Microsoft\WindowsApps\pwsh.exe es un App
+        // Execution Alias que delega a la instalación MSIX. Igual que el path
+        // bajo Program Files\WindowsApps, no funciona con ConPty: el proceso
+        // arranca pero queda silencioso. Filtramos TODO lo que pase por
+        // `\WindowsApps\`. El detector aceptable es Program Files\PowerShell\X.
+        var paths = new[]
+        {
+            @"C:\Users\andre\AppData\Local\Microsoft\WindowsApps\pwsh.exe",
+            @"C:\Program Files\PowerShell\7\pwsh.exe",
+        };
+        var profiles = PwshDetector.BuildProfilesFromPaths(paths);
+        Assert.Single(profiles);
+        Assert.DoesNotContain("WindowsApps", profiles[0].CommandLine);
+    }
+
+    [Fact]
     public void BuildProfiles_DedupeaCaseInsensitive()
     {
         // Si where.exe devuelve el mismo path con distinta capitalización,

@@ -21,6 +21,12 @@ public partial class TerminalPane : UserControl
 {
     private ConPtyService _pty = new();
     private bool _webReady;
+    // Guard contra reinicialización: WPF re-dispara Loaded en cada
+    // reparenting del visual tree (split mueve el pane existente entre
+    // slots). Sin este flag, cada Loaded re-suscribía el handler de
+    // mensajes de la WebView y cada tecla se escribía al PTY N veces
+    // (síntoma: "hhhh" al teclear "h").
+    private bool _webInitStarted;
     private string? _pendingCommandLine;
     private string? _pendingStartingDir;
     private short _lastCols = 120;
@@ -207,7 +213,24 @@ public partial class TerminalPane : UserControl
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
+        if (_webInitStarted) return;
+        _webInitStarted = true;
         try { await InitializeWebViewAsync(); }
+        catch (Exception ex) { CrashLogger.Log(ex); _webInitStarted = false; }
+    }
+
+    /// <summary>
+    /// Mueve el foco real al terminal embebido. La UserControl es Focusable=True;
+    /// un <c>this.Focus()</c> robaba el foco al WebView2 que el click acababa de
+    /// recibir, dejando el pane "activo" pero sin captura de teclado. Aquí
+    /// enfocamos el WebView (delega al HWND nativo) y reforzamos con term.focus()
+    /// para el textarea oculto de xterm.
+    /// </summary>
+    public void FocusTerminal()
+    {
+        WebView.Focus();
+        if (WebView.CoreWebView2 is null) return;
+        try { WebView.CoreWebView2.ExecuteScriptAsync("term.focus()"); }
         catch (Exception ex) { CrashLogger.Log(ex); }
     }
 

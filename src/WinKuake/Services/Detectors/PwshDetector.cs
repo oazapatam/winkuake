@@ -47,6 +47,20 @@ public sealed class PwshDetector : IProfileDetector
     {
         if (paths.Count == 0) return Array.Empty<UserProfile>();
 
+        // Filtrar TODO lo que pase por una carpeta WindowsApps:
+        //   - C:\Program Files\WindowsApps\... (instalación MSIX real, ACLs
+        //     restrictivos: CreateProcess "tiene éxito" pero el proceso no
+        //     accede al stdout del ConPty → terminal silenciosa, pantalla negra).
+        //   - %LocalAppData%\Microsoft\WindowsApps\pwsh.exe (App Execution
+        //     Alias que delega al binario MSIX, hereda el mismo problema).
+        // El detector debe emitir solo paths "clásicos" como
+        //   C:\Program Files\PowerShell\7\pwsh.exe.
+        var filtered = paths
+            .Where(p => p.IndexOf(@"\WindowsApps\", StringComparison.OrdinalIgnoreCase) < 0)
+            .ToList();
+        if (filtered.Count == 0) return Array.Empty<UserProfile>();
+        paths = filtered;
+
         // Si hay más de un path, intentamos diferenciar por versión para que el
         // usuario pueda distinguir 7.4 de 7.5-preview.
         bool annotateVersion = paths.Count > 1;
