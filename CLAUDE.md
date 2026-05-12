@@ -45,6 +45,11 @@ dotnet publish src\WinKuake\WinKuake.csproj -c Release -r win-x64 `
 
 # Construir el instalador (requiere Inno Setup 6 instalado)
 iscc installer\WinKuake.iss
+
+# Construir el .exe portable (un solo binario, sin install ni elevación;
+# settings/log/WebView2 cache siguen en %AppData%\WinKuake\ y
+# %LocalAppData%\WinKuake\WebView2\ — el .exe es portable, los datos no).
+.\build-portable.ps1
 ```
 
 ## Test-Driven Development (regla del proyecto)

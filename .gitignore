@@ -6,6 +6,7 @@
 [Rr]elease/
 [Dd]ebugPublic/
 publish/
+publish-portable/
 *.user
 *.suo
 *.userosscache
