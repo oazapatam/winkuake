@@ -13,7 +13,7 @@
 ; ===========================================================================
 
 #define AppName        "WinKuake"
-#define AppVersion     "0.2.0"
+#define AppVersion     "0.3.0"
 #define AppPublisher   "WinKuake"
 #define AppExeName     "WinKuake.exe"
 #define AppId          "{{C7D2A8E9-3F4B-4E1A-9C5D-1A2B3C4D5E6F}"
