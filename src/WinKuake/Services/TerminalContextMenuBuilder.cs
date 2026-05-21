@@ -27,17 +27,19 @@ public static class TerminalContextMenuBuilder
 {
     public static IReadOnlyList<ContextMenuItemSpec> Build(bool hasSelection, bool isInSplit)
     {
-        // DevTools va al final, sin shortcut: F12 está reservado para mostrar/
-        // ocultar la ventana de WinKuake y nunca llega al WebView2.
+        // Shortcuts default alineados con Yakuake. Los handlers JS también
+        // aceptan los atajos legacy (Ctrl+Shift+D/E para splits, Ctrl+Shift+W
+        // para close pane) por compatibilidad — el hint en el menú muestra
+        // los oficiales de Yakuake.
         return new List<ContextMenuItemSpec>
         {
             new("copy",            "Copiar selección",   "Ctrl+Shift+C", Enabled: hasSelection),
             new("paste",           "Pegar",              "Ctrl+Shift+V", Enabled: true),
             new("find",            "Buscar",             "Ctrl+Shift+F", Enabled: true),
             ContextMenuItemSpec.Sep(),
-            new("splitVertical",   "Dividir vertical",   "Alt+Shift+=",  Enabled: true),
-            new("splitHorizontal", "Dividir horizontal", "Alt+Shift+-",  Enabled: true),
-            new("closePane",       "Cerrar pane",        "Ctrl+Shift+W", Enabled: isInSplit),
+            new("splitVertical",   "Dividir vertical",   "Ctrl+(",       Enabled: true),
+            new("splitHorizontal", "Dividir horizontal", "Ctrl+)",       Enabled: true),
+            new("closePane",       "Cerrar pane",        "Ctrl+Shift+R", Enabled: isInSplit),
             ContextMenuItemSpec.Sep(),
             new("openPalette",     "Paleta de comandos", "Ctrl+Shift+P", Enabled: true),
             new("clearBuffer",     "Limpiar buffer",     "Ctrl+L",       Enabled: true),

@@ -17,9 +17,9 @@ public static class KeybindingService
     {
         new KeybindingAction("Hotkey",          "Hotkey global de drop-down",   "F12"),
         new KeybindingAction("NewTab",          "Nueva pestaña",                "Ctrl+Shift+T"),
-        new KeybindingAction("ClosePane",       "Cerrar pane",                  "Ctrl+Shift+W"),
-        new KeybindingAction("SplitVertical",   "Dividir vertical",             "Alt+Shift+="),
-        new KeybindingAction("SplitHorizontal", "Dividir horizontal",           "Alt+Shift+-"),
+        new KeybindingAction("ClosePane",       "Cerrar pane",                  "Ctrl+Shift+R"),
+        new KeybindingAction("SplitVertical",   "Dividir vertical",             "Ctrl+("),
+        new KeybindingAction("SplitHorizontal", "Dividir horizontal",           "Ctrl+)"),
         new KeybindingAction("Palette",         "Paleta de comandos",           "Ctrl+Shift+P"),
         new KeybindingAction("Broadcast",       "Toggle broadcast input",       "Ctrl+Shift+B"),
         new KeybindingAction("GlobalFind",      "Buscar en todos los buffers",  "Ctrl+Shift+Alt+F"),

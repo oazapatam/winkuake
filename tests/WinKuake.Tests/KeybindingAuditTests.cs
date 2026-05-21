@@ -18,9 +18,9 @@ public class KeybindingAuditTests
         var byId = KeybindingService.All.ToDictionary(a => a.Id);
 
         Assert.Equal("F12",              byId["Hotkey"].DefaultGesture);
-        Assert.Equal("Ctrl+Shift+W",     byId["ClosePane"].DefaultGesture);
-        Assert.Equal("Alt+Shift+=",      byId["SplitVertical"].DefaultGesture);
-        Assert.Equal("Alt+Shift+-",      byId["SplitHorizontal"].DefaultGesture);
+        Assert.Equal("Ctrl+Shift+R",     byId["ClosePane"].DefaultGesture);
+        Assert.Equal("Ctrl+(",           byId["SplitVertical"].DefaultGesture);
+        Assert.Equal("Ctrl+)",           byId["SplitHorizontal"].DefaultGesture);
         Assert.Equal("Ctrl+Shift+P",     byId["Palette"].DefaultGesture);
         Assert.Equal("Ctrl+Shift+B",     byId["Broadcast"].DefaultGesture);
         Assert.Equal("Ctrl+Shift+Alt+F", byId["GlobalFind"].DefaultGesture);

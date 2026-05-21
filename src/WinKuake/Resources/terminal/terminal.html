@@ -260,11 +260,24 @@
       postToHost({ type: 'prevTab' });
       return false;
     }
-    // Ctrl+Shift+1..9 : jump-to-tab
+    // Ctrl+Shift+1..9 : jump-to-tab (alternativa, mantenida por compat)
     if (ev.ctrlKey && ev.shiftKey && ev.code && ev.code.startsWith('Digit')) {
       const n = parseInt(ev.code.substring(5), 10);
       if (n >= 1 && n <= 9) {
         postToHost({ type: 'activateAt', index: n });
+        return false;
+      }
+    }
+    // Alt+1..9 / Alt+0 : jump-to-tab N (Yakuake default).
+    // Alt+0 → tab 10 para que sea contiguo en el orden de la fila numérica.
+    if (ev.altKey && !ev.ctrlKey && !ev.shiftKey && ev.code && ev.code.startsWith('Digit')) {
+      const n = parseInt(ev.code.substring(5), 10);
+      if (n >= 1 && n <= 9) {
+        postToHost({ type: 'activateAt', index: n });
+        return false;
+      }
+      if (n === 0) {
+        postToHost({ type: 'activateAt', index: 10 });
         return false;
       }
     }
@@ -278,23 +291,30 @@
       return false;
     }
     // Split vertical (pane al lado):
+    //   Ctrl+( (Yakuake default)
     //   Alt+Shift+= / Alt+Shift++ / Ctrl+Shift+D (estilo Windows Terminal)
     //   Acepta también ev.key === '+' para layouts no-US donde el code difiere.
-    if ((ev.altKey && ev.shiftKey && (ev.code === 'Equal' || ev.code === 'NumpadAdd' || ev.key === '+'))
+    //   ev.key === '(' funciona en cualquier layout (US Shift+9, LATAM Shift+8).
+    if ((ev.ctrlKey && ev.key === '(')
+        || (ev.altKey && ev.shiftKey && (ev.code === 'Equal' || ev.code === 'NumpadAdd' || ev.key === '+'))
         || (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyD')) {
       postToHost({ type: 'splitVertical' });
       return false;
     }
     // Split horizontal (pane debajo):
+    //   Ctrl+) (Yakuake default)
     //   Alt+Shift+- / Ctrl+Shift+E (estilo Windows Terminal)
     //   Acepta también ev.key === '-' o '_' (Shift+- en US).
-    if ((ev.altKey && ev.shiftKey && (ev.code === 'Minus' || ev.code === 'NumpadSubtract' || ev.key === '-' || ev.key === '_'))
+    if ((ev.ctrlKey && ev.key === ')')
+        || (ev.altKey && ev.shiftKey && (ev.code === 'Minus' || ev.code === 'NumpadSubtract' || ev.key === '-' || ev.key === '_'))
         || (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyE')) {
       postToHost({ type: 'splitHorizontal' });
       return false;
     }
-    // Ctrl+Shift+W : cerrar pane activo (si hay split; si no, host decide cerrar tab)
-    if (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyW') {
+    // Cerrar pane activo:
+    //   Ctrl+Shift+R (Yakuake default: close-active-terminal)
+    //   Ctrl+Shift+W (legacy, compatible). Si no hay split, el host decide cerrar tab.
+    if (ev.ctrlKey && ev.shiftKey && (ev.code === 'KeyR' || ev.code === 'KeyW')) {
       postToHost({ type: 'closePane' });
       return false;
     }

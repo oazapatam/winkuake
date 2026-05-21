@@ -217,6 +217,52 @@ public class TerminalHtmlTests
         Assert.Matches(@"ctrlKey[^{]*shiftKey[^{]*ArrowLeft[\s\S]*?prevTab", html);
     }
 
+    // ---- Yakuake defaults --------------------------------------------------
+
+    [Fact]
+    public void TerminalHtml_BindsCtrlParenOpen_ToSplitVertical()
+    {
+        // Yakuake default: Ctrl+( para split vertical.
+        // Usamos ev.key === '(' para que funcione en cualquier layout
+        // (en US es Ctrl+Shift+9, en LATAM es Ctrl+Shift+8).
+        var html = ReadHtml();
+        Assert.Matches(@"ctrlKey[^{]*ev\.key\s*===\s*['""]\(['""][\s\S]*?splitVertical", html);
+    }
+
+    [Fact]
+    public void TerminalHtml_BindsCtrlParenClose_ToSplitHorizontal()
+    {
+        // Yakuake default: Ctrl+) para split horizontal.
+        var html = ReadHtml();
+        Assert.Matches(@"ctrlKey[^{]*ev\.key\s*===\s*['""]\)['""][\s\S]*?splitHorizontal", html);
+    }
+
+    [Fact]
+    public void TerminalHtml_BindsCtrlShiftR_ToClosePane()
+    {
+        // Yakuake default: Ctrl+Shift+R = close-active-terminal (cerrar pane).
+        // Coexiste con Ctrl+Shift+W (close pane) que ya existe en el menú.
+        var html = ReadHtml();
+        Assert.Matches(@"ctrlKey[^{]*shiftKey[^{]*KeyR[\s\S]*?closePane", html);
+    }
+
+    [Fact]
+    public void TerminalHtml_BindsAltDigit_ToJumpToTabN()
+    {
+        // Yakuake default: Alt+1..9 = switch-to-session-N.
+        // El handler cataloga digits con `code.startsWith('Digit')`.
+        var html = ReadHtml();
+        Assert.Matches(@"altKey[^{]*Digit[\s\S]*?activateAt", html);
+    }
+
+    [Fact]
+    public void TerminalHtml_BindsAlt0_ToJumpToTab10()
+    {
+        // Yakuake default: Alt+0 = switch-to-session-10.
+        var html = ReadHtml();
+        Assert.Matches(@"index\s*:\s*10", html);
+    }
+
     [Fact]
     public void TerminalHtml_BindsCtrlL_ToClear()
     {
