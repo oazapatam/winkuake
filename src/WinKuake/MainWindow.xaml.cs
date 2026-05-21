@@ -541,6 +541,7 @@ public partial class MainWindow : Window
             case "closePane":       ctrl.CloseActivePane();            break;
             case "openPalette":     OpenCommandPalette(ctrl);          break;
             case "clearBuffer":     pane.ClearBuffer();                break;
+            case "devtools":        pane.OpenDevTools();               break;
         }
     }
 

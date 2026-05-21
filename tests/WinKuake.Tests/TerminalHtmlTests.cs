@@ -232,4 +232,31 @@ public class TerminalHtmlTests
         Assert.Contains("search.findNext", html);
         Assert.Contains("search.findPrevious", html);
     }
+
+    // ---- 1.D Diagnóstico (checkpoints) -------------------------------------
+
+    [Theory]
+    [InlineData("checkpoint:html_parsed")]
+    [InlineData("checkpoint:scripts_loaded")]
+    [InlineData("checkpoint:term_created")]
+    [InlineData("checkpoint:term_opened")]
+    [InlineData("checkpoint:ready_posted")]
+    public void TerminalHtml_EmitsDiagnosticCheckpoint(string marker)
+    {
+        // Si el pane sale 100% negro sin cursor, el log del host nos dice hasta
+        // qué punto llegó la inicialización JS. Sin esta migaja diagnosticar
+        // es ciego.
+        var html = ReadHtml();
+        Assert.Contains(marker, html);
+    }
+
+    [Fact]
+    public void TerminalHtml_RegistersUnhandledRejectionListener()
+    {
+        // window.addEventListener('error', ...) ya existe; agregamos
+        // 'unhandledrejection' para no perder errores de promesas en init
+        // (p.ej. ClipboardAddon, WebGL, fetch a un recurso roto).
+        var html = ReadHtml();
+        Assert.Matches(@"addEventListener\(\s*['""]unhandledrejection['""]", html);
+    }
 }

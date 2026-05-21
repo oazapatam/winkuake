@@ -55,12 +55,14 @@
 </div>
 
 <script>
-  // Solo logueamos errores, no progreso normal.
+  // Solo logueamos errores y checkpoints de inicialización (no progreso runtime).
   function dbg(msg) {
     if (window.chrome && window.chrome.webview)
       window.chrome.webview.postMessage({ type: 'debug', msg: String(msg) });
   }
   window.addEventListener('error', e => dbg('JS error: ' + e.message + ' at ' + e.filename + ':' + e.lineno));
+  window.addEventListener('unhandledrejection', e => dbg('unhandled rejection: ' + (e.reason && e.reason.message || e.reason)));
+  dbg('checkpoint:html_parsed');
 </script>
 <script src="xterm.js" onerror="dbg('xterm.js FAILED to load')"></script>
 <script src="addon-fit.js" onerror="dbg('addon-fit FAILED')"></script>
@@ -70,6 +72,7 @@
 <script src="addon-webgl.js" onerror="dbg('addon-webgl FAILED')"></script>
 <script src="addon-clipboard.js" onerror="dbg('addon-clipboard FAILED')"></script>
 <script>
+  dbg('checkpoint:scripts_loaded');
   // ---- Paleta VSCode Dark+ extendida ---------------------------------------
   const theme = {
     background: '#0c0c0c',
@@ -108,6 +111,7 @@
     windowsMode: false,
     theme
   });
+  dbg('checkpoint:term_created');
 
   // Addons
   const fit = new FitAddon.FitAddon();
@@ -126,7 +130,9 @@
   term.loadAddon(new ClipboardAddon.ClipboardAddon());
 
   const termEl = document.getElementById('term');
+  if (!termEl) dbg('FATAL: #term div no existe en el DOM');
   term.open(termEl);
+  dbg('checkpoint:term_opened cols=' + term.cols + ' rows=' + term.rows);
 
   // WebGL acelerado: si falla, fallback al renderer de canvas.
   try {
@@ -432,6 +438,7 @@
   // ---- Listo ----------------------------------------------------------------
   try { fit.fit(); } catch (e) { dbg('fit error: ' + e.message); }
   postToHost({ type: 'ready', cols: term.cols, rows: term.rows });
+  dbg('checkpoint:ready_posted cols=' + term.cols + ' rows=' + term.rows);
   term.focus();
 </script>
 </body>

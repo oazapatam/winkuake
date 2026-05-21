@@ -32,6 +32,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="WinKuake.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="Resources\terminal\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

@@ -13,6 +13,8 @@ internal static class ConPtyNative
 {
     public const int S_OK = 0;
     public const uint EXTENDED_STARTUPINFO_PRESENT = 0x00080000;
+    public const uint DETACHED_PROCESS = 0x00000008;
+    public const uint CREATE_NO_WINDOW = 0x08000000;
     public const uint STARTF_USESTDHANDLES = 0x00000100;
     public const int PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016;
 
@@ -55,6 +57,14 @@ internal static class ConPtyNative
         public int dwThreadId;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SECURITY_ATTRIBUTES
+    {
+        public int nLength;
+        public IntPtr lpSecurityDescriptor;
+        public int bInheritHandle;
+    }
+
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern int CreatePseudoConsole(COORD size, SafeFileHandle hInput, SafeFileHandle hOutput, uint dwFlags, out IntPtr phPC);
 
@@ -66,6 +76,9 @@ internal static class ConPtyNative
 
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern bool CreatePipe(out SafeFileHandle hReadPipe, out SafeFileHandle hWritePipe, IntPtr lpPipeAttributes, uint nSize);
+
+    [DllImport("kernel32.dll", SetLastError = true, EntryPoint = "CreatePipe")]
+    public static extern bool CreatePipeSA(out SafeFileHandle hReadPipe, out SafeFileHandle hWritePipe, ref SECURITY_ATTRIBUTES lpPipeAttributes, uint nSize);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -82,7 +95,7 @@ internal static class ConPtyNative
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool CreateProcess(
         string? lpApplicationName, string lpCommandLine,
-        IntPtr lpProcessAttributes, IntPtr lpThreadAttributes,
+        ref SECURITY_ATTRIBUTES lpProcessAttributes, ref SECURITY_ATTRIBUTES lpThreadAttributes,
         bool bInheritHandles, uint dwCreationFlags,
         IntPtr lpEnvironment, string? lpCurrentDirectory,
         [In] ref STARTUPINFOEX lpStartupInfo,
@@ -91,4 +104,11 @@ internal static class ConPtyNative
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool CloseHandle(IntPtr hObject);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
+
+    [DllImport("kernel32.dll", SetLastError = true, EntryPoint = "GetExitCodeProcess")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetExitCode(IntPtr hProcess, out uint lpExitCode);
 }

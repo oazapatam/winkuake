@@ -42,7 +42,8 @@ public class ContextMenuTests
         {
             "copy", "paste", "find",
             "splitVertical", "splitHorizontal", "closePane",
-            "openPalette", "clearBuffer"
+            "openPalette", "clearBuffer",
+            "devtools"
         }, ids);
     }
 
@@ -50,8 +51,8 @@ public class ContextMenuTests
     public void Build_ContieneSeparadoresEntreGrupos()
     {
         var items = TerminalContextMenuBuilder.Build(hasSelection: true, isInSplit: true);
-        // Tres grupos => dos separadores.
-        Assert.Equal(2, items.Count(i => i.IsSeparator));
+        // Cuatro grupos => tres separadores (copy/paste/find | splits | palette/clear | devtools).
+        Assert.Equal(3, items.Count(i => i.IsSeparator));
     }
 
     [Fact]
@@ -95,6 +96,7 @@ public class ContextMenuTests
     [InlineData("closePane",       "Cerrar pane",        "Ctrl+Shift+W")]
     [InlineData("openPalette",     "Paleta de comandos", "Ctrl+Shift+P")]
     [InlineData("clearBuffer",     "Limpiar buffer",     "Ctrl+L")]
+    [InlineData("devtools",        "Abrir DevTools",     "")]
     public void Build_CadaItemTieneLabelYShortcutEsperados(string id, string label, string shortcut)
     {
         var items = TerminalContextMenuBuilder.Build(hasSelection: true, isInSplit: true);
@@ -183,6 +185,26 @@ public class ContextMenuTests
         var path = Path.Combine(SrcDir(), "Views", "TerminalPane.xaml.cs");
         var src = File.ReadAllText(path);
         Assert.Contains("ContextMenuRequested", src);
+    }
+
+    [Fact]
+    public void TerminalPaneCs_ExponeOpenDevTools_QueLlamaOpenDevToolsWindow()
+    {
+        // El menú contextual debe poder abrir las DevTools del WebView2 porque
+        // F12 está reservado para mostrar/ocultar la ventana de WinKuake y no
+        // llega al embed. Sin esta entrada no hay forma de inspeccionar el JS.
+        var path = Path.Combine(SrcDir(), "Views", "TerminalPane.xaml.cs");
+        var src = File.ReadAllText(path);
+        Assert.Matches(new Regex(@"public\s+void\s+OpenDevTools\s*\("), src);
+        Assert.Contains("OpenDevToolsWindow", src);
+    }
+
+    [Fact]
+    public void MainWindowCs_TieneCaseDevToolsEnContextMenuHandler()
+    {
+        var path = Path.Combine(SrcDir(), "MainWindow.xaml.cs");
+        var src = File.ReadAllText(path);
+        Assert.Matches(new Regex(@"case\s+""devtools""[\s\S]*?pane\.OpenDevTools"), src);
     }
 
     private static string SrcDir()

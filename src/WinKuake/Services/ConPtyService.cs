@@ -46,6 +46,8 @@ public sealed class ConPtyService : IDisposable
         if (cols <= 0) cols = 120;
         if (rows <= 0) rows = 30;
 
+        CrashLogger.Info($"ConPty.Start: cmd='{commandLine}' cwd='{startingDirectory}' cols={cols} rows={rows}");
+
         // Dos pipes: PTY -> nuestro proceso (lectura del output), nuestro proceso -> PTY (input).
         if (!ConPtyNative.CreatePipe(out var ptyOutRead, out var ptyOutWrite, IntPtr.Zero, 0))
             ThrowLastError("CreatePipe (output)");
@@ -58,10 +60,34 @@ public sealed class ConPtyService : IDisposable
         var hr = ConPtyNative.CreatePseudoConsole(new ConPtyNative.COORD(cols, rows), ptyInRead, ptyOutWrite, 0, out _pseudoConsole);
         if (hr != ConPtyNative.S_OK) throw new InvalidOperationException($"CreatePseudoConsole hr=0x{hr:X}");
 
+        // ConPty duplica los handles internamente; liberar nuestras refs acá
+        // hace que ClosePseudoConsole (en shutdown) cierre el único dueño y
+        // PumpRead vea EOF en su Read síncrono. Sin esto, PumpRead se cuelga
+        // tras el exit del shell.
         ptyInRead.Dispose();
         ptyOutWrite.Dispose();
 
         StartShell(commandLine, startingDirectory);
+        CrashLogger.Info($"ConPty.Start: proceso lanzado PID={_procInfo.dwProcessId}");
+
+        // Watcher en hilo aparte: cuando el shell muere, conhost no cierra el pipe
+        // del lado lector, así que PumpRead se queda eternamente esperando bytes.
+        // El watcher hace WaitForSingleObject sobre hProcess, loguea el exit code,
+        // y cierra el pseudo-console para que PumpRead vea EOF y dispare Exited.
+        var hProc = _procInfo.hProcess;
+        var watcher = new Thread(() =>
+        {
+            try
+            {
+                ConPtyNative.WaitForSingleObject(hProc, 0xFFFFFFFF);
+                uint exitCode = 0;
+                ConPtyNative.GetExitCode(hProc, out exitCode);
+                CrashLogger.Info($"ConPty watcher: shell PID={_procInfo.dwProcessId} EXITED con código 0x{exitCode:X} ({exitCode})");
+                ShutdownPseudoConsoleFromWatcher();
+            }
+            catch (Exception ex) { CrashLogger.Log(ex); }
+        }) { IsBackground = true, Name = "ConPty-Watcher" };
+        watcher.Start();
 
         // CreatePipe produce handles sin FILE_FLAG_OVERLAPPED, así que NO se
         // pueden envolver con isAsync:true (FileStream lanzaría ArgumentException).
@@ -95,13 +121,37 @@ public sealed class ConPtyService : IDisposable
         var siex = new ConPtyNative.STARTUPINFOEX();
         siex.StartupInfo.cb = Marshal.SizeOf<ConPtyNative.STARTUPINFOEX>();
         siex.lpAttributeList = _attrList;
+        // CRÍTICO: workaround del bug "ConPTY desde proceso GUI (WinExe) o con
+        // stdout redirigido". A pesar de que MSDN dice "STARTF_USESTDHANDLES
+        // must NOT be set" cuando se usa el atributo PSEUDOCONSOLE, en Win10
+        // y varias versiones de Win11 hay que ponerlo CON los handles std en
+        // NULL. Eso desactiva la duplicación automática del kernel que estaba
+        // dándole al child los handles del padre (consola heredada o stdout
+        // redirigido) en lugar del pseudo-console. Sin esto el child ignora
+        // silenciosamente el atributo y escribe a la stdout del padre.
+        // Ver: microsoft/terminal discussion #15814, issue #11276.
+        siex.StartupInfo.dwFlags |= ConPtyNative.STARTF_USESTDHANDLES;
+
+        // SECURITY_ATTRIBUTES con nLength sólo (resto de campos en 0/null) es
+        // lo que usa el sample oficial de Microsoft (MiniTerm). Pasar IntPtr.Zero
+        // a CreateProcess teóricamente debería ser equivalente, pero en algunos
+        // builds de Windows 11 el atributo de pseudo-consola no se aplica al
+        // child cuando lpProcessAttributes/lpThreadAttributes son NULL — el
+        // proceso hereda silenciosamente la consola del padre.
+        int secSize = Marshal.SizeOf<ConPtyNative.SECURITY_ATTRIBUTES>();
+        var pSec = new ConPtyNative.SECURITY_ATTRIBUTES { nLength = secSize };
+        var tSec = new ConPtyNative.SECURITY_ATTRIBUTES { nLength = secSize };
+
+        // Si startingDirectory es "" lo normalizamos a null: CreateProcess
+        // documenta null = "usar CWD del padre"; con "" en algunos casos falla.
+        var cwd = string.IsNullOrWhiteSpace(startingDirectory) ? null : startingDirectory;
 
         if (!ConPtyNative.CreateProcess(
                 null, commandLine,
-                IntPtr.Zero, IntPtr.Zero,
+                ref pSec, ref tSec,
                 bInheritHandles: false,
                 ConPtyNative.EXTENDED_STARTUPINFO_PRESENT,
-                IntPtr.Zero, startingDirectory,
+                IntPtr.Zero, cwd,
                 ref siex, out _procInfo))
             ThrowLastError("CreateProcess");
     }
@@ -122,15 +172,32 @@ public sealed class ConPtyService : IDisposable
         ConPtyNative.ResizePseudoConsole(_pseudoConsole, new ConPtyNative.COORD(cols, rows));
     }
 
+    private readonly object _shutdownLock = new();
+    private void ShutdownPseudoConsoleFromWatcher()
+    {
+        // Llamado desde el thread watcher cuando el child muere. Cierra el
+        // pseudo-console para que PumpRead vea EOF y termine limpio.
+        lock (_shutdownLock)
+        {
+            if (_pseudoConsole != IntPtr.Zero)
+            {
+                ConPtyNative.ClosePseudoConsole(_pseudoConsole);
+                _pseudoConsole = IntPtr.Zero;
+            }
+        }
+    }
+
     private void PumpRead(CancellationToken ct)
     {
         var buf = new byte[4096];
+        bool firstRead = true;
         try
         {
             while (!ct.IsCancellationRequested && _readStream is not null)
             {
                 var n = _readStream.Read(buf, 0, buf.Length);
-                if (n <= 0) break;
+                if (firstRead) { CrashLogger.Info($"ConPty PumpRead: primer Read devolvió n={n}"); firstRead = false; }
+                if (n <= 0) { CrashLogger.Info($"ConPty PumpRead: EOF (n={n}). Pipe cerrado por el shell."); break; }
                 // Copia: el handler puede ser async (Dispatcher.InvokeAsync) y
                 // el buffer se reusa en la siguiente iteración.
                 var copy = new byte[n];
@@ -145,6 +212,7 @@ public sealed class ConPtyService : IDisposable
         }
         finally
         {
+            CrashLogger.Info("ConPty PumpRead: terminado, disparando Exited");
             Exited?.Invoke();
         }
     }
@@ -164,10 +232,13 @@ public sealed class ConPtyService : IDisposable
         try { _readStream?.Dispose(); } catch { }
         try { _writeStream?.Dispose(); } catch { }
 
-        if (_pseudoConsole != IntPtr.Zero)
+        lock (_shutdownLock)
         {
-            ConPtyNative.ClosePseudoConsole(_pseudoConsole);
-            _pseudoConsole = IntPtr.Zero;
+            if (_pseudoConsole != IntPtr.Zero)
+            {
+                ConPtyNative.ClosePseudoConsole(_pseudoConsole);
+                _pseudoConsole = IntPtr.Zero;
+            }
         }
         if (_procInfo.hProcess != IntPtr.Zero) ConPtyNative.CloseHandle(_procInfo.hProcess);
         if (_procInfo.hThread != IntPtr.Zero)  ConPtyNative.CloseHandle(_procInfo.hThread);

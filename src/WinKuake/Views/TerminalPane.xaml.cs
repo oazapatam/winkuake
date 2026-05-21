@@ -77,6 +77,14 @@ public partial class TerminalPane : UserControl
         catch (Exception ex) { CrashLogger.Log(ex); }
     }
 
+    /// <summary>Abre las DevTools del WebView2 (Inspect Element / Console).</summary>
+    public void OpenDevTools()
+    {
+        if (WebView.CoreWebView2 is null) return;
+        try { WebView.CoreWebView2.OpenDevToolsWindow(); }
+        catch (Exception ex) { CrashLogger.Log(ex); }
+    }
+
     /// <summary>Pega el contenido del clipboard (equivalente a Ctrl+Shift+V).</summary>
     public void PasteFromClipboard()
     {
@@ -170,7 +178,14 @@ public partial class TerminalPane : UserControl
 
     public void StartShell(string commandLine, string? startingDir = null)
     {
-        if (!_webReady) { _pendingCommandLine = commandLine; _pendingStartingDir = startingDir; return; }
+        if (!_webReady)
+        {
+            _pendingCommandLine = commandLine;
+            _pendingStartingDir = startingDir;
+            CrashLogger.Info($"StartShell pending (webReady=false): cmd='{commandLine}' dir='{startingDir}'");
+            return;
+        }
+        CrashLogger.Info($"StartShell immediate: cmd='{commandLine}' dir='{startingDir}' cols={_lastCols} rows={_lastRows}");
         _pty.Start(commandLine, _lastCols, _lastRows, startingDir);
     }
 
@@ -263,26 +278,56 @@ public partial class TerminalPane : UserControl
 
     private async Task InitializeWebViewAsync()
     {
+        // Diagnóstico: cada etapa queda en winkuake.log con timestamp. Sin estos
+        // breadcrumbs un fallo silencioso (pane 100% negro sin cursor) era
+        // indistinguible de varias causas (env, mapping, navegación, JS muerto).
+        CrashLogger.Info("WebView init: solicitando shared environment");
         var env = await GetSharedEnvAsync();
+        CrashLogger.Info("WebView init: environment OK, llamando EnsureCoreWebView2Async");
         await WebView.EnsureCoreWebView2Async(env);
+        CrashLogger.Info("WebView init: EnsureCoreWebView2Async OK");
 
         var resourcesDir = ResolveResourcesDir();
+        var htmlPath = Path.Combine(resourcesDir, "terminal.html");
+        if (!File.Exists(htmlPath))
+            CrashLogger.Info($"WebView init: WARN terminal.html NO existe en {htmlPath}");
+        else
+            CrashLogger.Info($"WebView init: terminal.html OK en {resourcesDir}");
+
         WebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
             "winkuake.local", resourcesDir, CoreWebView2HostResourceAccessKind.Allow);
 
         WebView.CoreWebView2.WebMessageReceived += OnWebMessage;
+        WebView.CoreWebView2.NavigationStarting += (_, e) =>
+            CrashLogger.Info($"WebView nav starting: {e.Uri}");
+        WebView.CoreWebView2.NavigationCompleted += (_, e) =>
+            CrashLogger.Info($"WebView nav completed: success={e.IsSuccess} status={e.WebErrorStatus} httpStatus={e.HttpStatusCode}");
+        WebView.CoreWebView2.DOMContentLoaded += (_, _) =>
+            CrashLogger.Info("WebView DOMContentLoaded");
+        WebView.CoreWebView2.ProcessFailed += (_, e) =>
+            CrashLogger.Info($"WebView process FAILED: kind={e.ProcessFailedKind} reason={e.Reason} exit={e.ExitCode}");
+
         WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
         WebView.CoreWebView2.Settings.AreDevToolsEnabled = true;
         WebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
 
+        CrashLogger.Info("WebView init: Navigate → https://winkuake.local/terminal.html");
         WebView.CoreWebView2.Navigate("https://winkuake.local/terminal.html");
     }
 
     private static string ResolveResourcesDir()
         => Path.Combine(AppContext.BaseDirectory, "Resources", "terminal");
 
+    private bool _firstPtyChunkLogged;
     private void OnPtyOutput(ReadOnlyMemory<byte> data)
     {
+        if (!_firstPtyChunkLogged)
+        {
+            _firstPtyChunkLogged = true;
+            var preview = Encoding.UTF8.GetString(data.Span).Replace("\r", "\\r").Replace("\n", "\\n");
+            if (preview.Length > 80) preview = preview[..80] + "…";
+            CrashLogger.Info($"OnPtyOutput primer chunk: {data.Length} bytes: \"{preview}\"");
+        }
         var text = Encoding.UTF8.GetString(data.Span);
         Dispatcher.InvokeAsync(() =>
             WebView.CoreWebView2?.PostWebMessageAsString(text));
@@ -310,7 +355,12 @@ public partial class TerminalPane : UserControl
                         var dir = _pendingStartingDir;
                         _pendingCommandLine = null;
                         _pendingStartingDir = null;
+                        CrashLogger.Info($"ready: arrancando PTY pendiente cmd='{cmd}' dir='{dir}' cols={_lastCols} rows={_lastRows}");
                         _pty.Start(cmd, _lastCols, _lastRows, dir);
+                    }
+                    else
+                    {
+                        CrashLogger.Info($"ready: SIN _pendingCommandLine (nadie llamó StartShell antes de que el JS posteara ready). cols={_lastCols} rows={_lastRows}");
                     }
                     break;
 
