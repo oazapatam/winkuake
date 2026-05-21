@@ -1,8 +1,9 @@
 # Instrucciones para Claude Code — proyecto WinKuake
 
 > Este archivo contiene **reglas operativas** para los agentes Claude que trabajan
-> en este repo. Para arquitectura técnica ver [`ARCHITECTURE.md`](ARCHITECTURE.md);
-> para uso final ver [`README.md`](README.md).
+> en este repo. Para arquitectura técnica ver [`PLAN.md`](PLAN.md) y la sección
+> "Architecture" del [`README.md`](README.md); para uso final ver el resto del
+> [`README.md`](README.md).
 
 ---
 
@@ -20,12 +21,12 @@
 - **Indentación:** 4 espacios. Llaves en línea nueva (estilo Allman / por defecto de VS).
 - **Async:** sufijo `Async` y aceptar `CancellationToken` cuando aplique.
 - **Logging:** `WinKuake.Services.CrashLogger.Log(ex)` para errores no fatales. **No** usar `Console.WriteLine` (la app es `WinExe`, no hay consola).
-- **P/Invoke:** todo Win32 vive en [src/WinKuake/Native/NativeMethods.cs](src/WinKuake/Native/NativeMethods.cs). No esparcir `[DllImport]` por el código de servicios excepto cuando el método sea exclusivo de un único host (caso `TerminalHost.CreateWindowEx`).
+- **P/Invoke:** Win32 general en [src/WinKuake/Native/NativeMethods.cs](src/WinKuake/Native/NativeMethods.cs); las APIs de ConPTY (`CreatePseudoConsole`, `ResizePseudoConsole`, proceso con `STARTUPINFOEX`) viven aparte en [src/WinKuake/Native/ConPtyNative.cs](src/WinKuake/Native/ConPtyNative.cs). No esparcir `[DllImport]` por servicios.
 - **Settings:** cualquier opción nueva persistible va en [src/WinKuake/Models/AppSettings.cs](src/WinKuake/Models/AppSettings.cs) con un valor por defecto sensato. Migrar settings.json es responsabilidad del autor del cambio.
 
 ## Restricciones del proyecto
 
-- **No reimplementar el motor de terminal.** WinKuake embebe `wt.exe` por diseño. Si una feature necesita ConPTY directo, discútelo con el usuario antes — probablemente exista una alternativa vía `wt --window winkuake-host <action>`.
+- **No volver a depender de Windows Terminal.** WinKuake es standalone: motor propio basado en **ConPTY** ([src/WinKuake/Services/ConPtyService.cs](src/WinKuake/Services/ConPtyService.cs) + [src/WinKuake/Native/ConPtyNative.cs](src/WinKuake/Native/ConPtyNative.cs)) y render en **WebView2 + xterm.js** ([src/WinKuake/Views/TerminalPane.xaml](src/WinKuake/Views/TerminalPane.xaml), [src/WinKuake/Resources/terminal/terminal.html](src/WinKuake/Resources/terminal/terminal.html)). No reintroducir `wt.exe`, `conhost`, ni dependencias del `settings.json` de Windows Terminal. Hay test de regresión: `WtRemovalRegressionTests`.
 - **No tocar ramas / releases sin pedir.** Este es un proyecto personal del usuario; commits, tags y publicaciones requieren confirmación explícita.
 - **No instalar dependencias NuGet adicionales** sin pedir aprobación. La meta es que el ejecutable sea pequeño y self-contained.
 - **No añadir telemetría, analytics, ni llamadas de red.** WinKuake es 100% local.
@@ -38,6 +39,12 @@ dotnet build src\WinKuake\WinKuake.csproj
 
 # Ejecutar
 dotnet run --project src\WinKuake\WinKuake.csproj
+
+# Tests (toda la suite)
+dotnet test tests\WinKuake.Tests\WinKuake.Tests.csproj
+
+# Un solo test (ej.: filtrar por clase o por nombre completo)
+dotnet test tests\WinKuake.Tests\WinKuake.Tests.csproj --filter "FullyQualifiedName~SettingsServiceTests"
 
 # Publicar self-contained (lo que consume el instalador)
 dotnet publish src\WinKuake\WinKuake.csproj -c Release -r win-x64 `
@@ -62,8 +69,9 @@ iscc installer\WinKuake.iss
 4. **Corre `dotnet test`** antes de dar un cambio por terminado.
 
 **Qué se testea unitariamente (obligatorio TDD):**
-- Servicios (`WtProfileSource`, `SettingsService`, `ProfileIconHelper`, parsing de cualquier tipo).
-- Modelos / records (`TerminalProfile`, `TabItem`, `AppSettings`).
+- Servicios (`ProfileRegistry` + detectores en [src/WinKuake/Services/Detectors/](src/WinKuake/Services/Detectors/), `SettingsService`, `KeybindingService`, `CommandSnippetService`, `GlobalFindService`, `SkinService`, `TerminalSessionsManager`, `GeometryRatios`, `ProfileIconHelper`, parsing de cualquier tipo).
+- Modelos / records (`TerminalProfile`, `AppSettings`, snippets, workspaces, splits tree).
+- Frontend del terminal (`TerminalHtmlTests` parsea `terminal.html` y verifica addons / atajos por regex; no ejecuta JS).
 - Lógica de negocio pura (resolución de commandlines, mapeos de perfiles, etc.).
 
 **Qué se valida manualmente (no se puede unit-testar):**
@@ -99,13 +107,13 @@ La verificación visual / integración manual va abajo en "Validación manual".
 
 Cuando hagas un cambio que afecte la UX, valida en ejecución (F5 desde VS):
 
-- [ ] **F12** muestra la ventana con animación slide desde el tope.
-- [ ] **F12 de nuevo** la oculta con animación inversa.
-- [ ] Primer F12 lanza Windows Terminal y queda embebido sin chrome propio.
-- [ ] Botón **＋ Pestaña** abre nueva pestaña dentro de la misma ventana embebida.
-- [ ] Botones **⬌ Vertical** / **⬍ Horizontal** dividen el panel actual.
-- [ ] Cambiar **opacidad / alto / ancho** desde Configuración aplica al instante.
-- [ ] Cambiar el **hotkey** en Configuración funciona sin reiniciar la app.
+- [ ] **F12** muestra la ventana con animación slide desde el tope; **F12 de nuevo** la oculta con animación inversa.
+- [ ] Al primer F12 se crea una pestaña con el perfil por defecto; el render en WebView2 + xterm.js levanta y el prompt responde a input.
+- [ ] **Ctrl+Shift+T** abre nueva pestaña; **Ctrl+Shift+D** divide vertical, **Ctrl+Shift+E** horizontal.
+- [ ] **Alt+↑↓←→** mueve el foco entre paneles; **Ctrl+Shift+B** activa broadcast a todos los paneles.
+- [ ] **Ctrl+Shift+C** copia selección; **Ctrl+Shift+V** pega una vez (no debe duplicar — ver `TerminalHtmlTests`).
+- [ ] Cambiar **opacidad / alto / ancho / hotkey** en Configuración aplica al instante (sin reiniciar).
+- [ ] Cerrar y reabrir la app restaura tabs, splits, workspace activo y tamaño de ventana.
 
 Si no puedes ejecutar la app (no tienes el SDK, etc.), **dilo explícitamente** en la respuesta — no afirmes que funciona sin haberlo probado.
 
