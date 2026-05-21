@@ -202,6 +202,22 @@ public class TerminalHtmlTests
     }
 
     [Fact]
+    public void TerminalHtml_BindsCtrlShiftArrowRight_ToNextTab()
+    {
+        // Ctrl+Shift+→ : siguiente tab. Equivalente teclas-flechas al Ctrl+Tab
+        // existente, sin chocar con la selección de texto (que sería Shift+→ sola).
+        var html = ReadHtml();
+        Assert.Matches(@"ctrlKey[^{]*shiftKey[^{]*ArrowRight[\s\S]*?nextTab", html);
+    }
+
+    [Fact]
+    public void TerminalHtml_BindsCtrlShiftArrowLeft_ToPrevTab()
+    {
+        var html = ReadHtml();
+        Assert.Matches(@"ctrlKey[^{]*shiftKey[^{]*ArrowLeft[\s\S]*?prevTab", html);
+    }
+
+    [Fact]
     public void TerminalHtml_BindsCtrlL_ToClear()
     {
         var html = ReadHtml();

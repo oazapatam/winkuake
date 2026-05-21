@@ -250,6 +250,16 @@
       postToHost({ type: 'prevTab' });
       return false;
     }
+    // Ctrl+Shift+→ / Ctrl+Shift+← : navegar entre tabs con flechas.
+    // No usamos Shift+arrow solo porque chocaría con la selección de texto.
+    if (ev.ctrlKey && ev.shiftKey && ev.code === 'ArrowRight') {
+      postToHost({ type: 'nextTab' });
+      return false;
+    }
+    if (ev.ctrlKey && ev.shiftKey && ev.code === 'ArrowLeft') {
+      postToHost({ type: 'prevTab' });
+      return false;
+    }
     // Ctrl+Shift+1..9 : jump-to-tab
     if (ev.ctrlKey && ev.shiftKey && ev.code && ev.code.startsWith('Digit')) {
       const n = parseInt(ev.code.substring(5), 10);

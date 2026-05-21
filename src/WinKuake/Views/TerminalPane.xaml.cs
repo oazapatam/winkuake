@@ -56,6 +56,14 @@ public partial class TerminalPane : UserControl
     public event Action<string>? InputReceived;
 
     /// <summary>
+    /// Se dispara la primera vez que el JS embebido postea "ready" — es decir,
+    /// xterm.js terminó de montar y el WebView ya acepta term.focus().
+    /// El host usa esto para mover el foco al pane recién creado (Ctrl+Shift+T,
+    /// primer F12) sin tener que clickear.
+    /// </summary>
+    public event Action? Ready;
+
+    /// <summary>
     /// Click derecho sobre el terminal. Coordenadas en píxeles de cliente del
     /// WebView2 (las traduce el host a coords de pantalla para posicionar el menú).
     /// </summary>
@@ -362,6 +370,7 @@ public partial class TerminalPane : UserControl
                     {
                         CrashLogger.Info($"ready: SIN _pendingCommandLine (nadie llamó StartShell antes de que el JS posteara ready). cols={_lastCols} rows={_lastRows}");
                     }
+                    Ready?.Invoke();
                     break;
 
                 case "in":

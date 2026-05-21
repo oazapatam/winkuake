@@ -21,7 +21,7 @@ public sealed class WindowAnimator
         _window = window;
     }
 
-    public void Show(double topTarget, int durationMs)
+    public void Show(double topTarget, int durationMs, Action? onCompleted = null)
     {
         if (_isAnimating) return;
         _isAnimating = true;
@@ -38,6 +38,7 @@ public sealed class WindowAnimator
         {
             _isAnimating = false;
             IsVisible = true;
+            onCompleted?.Invoke();
         };
         _window.BeginAnimation(Window.TopProperty, anim);
     }

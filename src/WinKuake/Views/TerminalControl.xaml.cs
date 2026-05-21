@@ -68,6 +68,12 @@ public partial class TerminalControl : UserControl
     /// <summary>Envía texto al pane activo. Usado por la paleta de comandos.</summary>
     public void InjectInputToActive(string text) => _activePane?.InjectInput(text);
 
+    /// <summary>
+    /// Mueve el foco real al pane activo (WebView2 + term.focus()). Usado por
+    /// MainWindow al abrir con F12 y al cambiar de tab.
+    /// </summary>
+    public void FocusActivePane() => _activePane?.FocusTerminal();
+
     /// <summary>Selección de texto del pane activo (para snippet {selection}).</summary>
     public System.Threading.Tasks.Task<string?> GetActivePaneSelectionAsync()
         => _activePane?.GetSelectionAsync() ?? System.Threading.Tasks.Task.FromResult<string?>(null);
@@ -274,6 +280,15 @@ public partial class TerminalControl : UserControl
             if (!BroadcastEnabled) return;
             foreach (var p in _panes)
                 if (p != pane) p.InjectInput(text);
+        };
+        // Cuando el JS termina de inicializar, si este pane es el activo del
+        // control le movemos el foco. Cubre Ctrl+Shift+T (sesión nueva) y el
+        // primer F12 sobre una sesión restaurada: ambos crean panes nuevos
+        // cuyo WebView no estaba listo al momento del FocusActiveTerminal del
+        // host, así que el primer foco se completa acá.
+        pane.Ready += () =>
+        {
+            if (pane == _activePane) pane.FocusTerminal();
         };
         return pane;
     }

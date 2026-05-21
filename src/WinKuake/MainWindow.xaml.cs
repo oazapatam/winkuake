@@ -129,7 +129,9 @@ public partial class MainWindow : Window
         else
         {
             ApplyGeometry();
-            _animator.Show(top, _settings.AnimationMs);
+            // Foco al terminal cuando termina el slide. Si no, hay que clickear
+            // el pane para poder tipear porque WPF deja el foco en el chrome.
+            _animator.Show(top, _settings.AnimationMs, FocusActiveTerminal);
 
             if (!_firstShown)
             {
@@ -138,6 +140,18 @@ public partial class MainWindow : Window
             }
             else Activate();
         }
+    }
+
+    /// <summary>
+    /// Mueve el foco al pane activo del tab activo. Idempotente y null-safe:
+    /// si todavía no hay sesión, no hay control o el pane no se inicializó,
+    /// no hace nada.
+    /// </summary>
+    private void FocusActiveTerminal()
+    {
+        if (_sessions.Active is not { } a) return;
+        if (!_controls.TryGetValue(a.Id, out var ctrl)) return;
+        ctrl.FocusActivePane();
     }
 
     private TerminalProfile DefaultProfile()
@@ -296,6 +310,10 @@ public partial class MainWindow : Window
             _tray?.SetBroadcastState(ctrl.BroadcastEnabled);
         else
             _tray?.SetBroadcastState(false);
+
+        // Foco al pane activo del nuevo tab, así Ctrl+Tab / Ctrl+Shift+arrows /
+        // click en tab bar dejan el cursor listo para tipear sin click extra.
+        FocusActiveTerminal();
     }
 
     private void UpdateStatusForActive()
