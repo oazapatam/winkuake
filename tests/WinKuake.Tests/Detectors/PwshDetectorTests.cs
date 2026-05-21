@@ -128,4 +128,71 @@ public class PwshDetectorTests
         // contrato de dedupe no reviente en flow real (no que devuelva 1).
         Assert.Empty(PwshDetector.BuildProfiles(raw));
     }
+
+    // ---- CollectCandidates (función pura) ---------------------------------
+
+    [Fact]
+    public void CollectCandidates_CombinaTodasLasFuentes_Y_Dedupea()
+    {
+        // Las 4 fuentes que cubrimos a la par de Windows Terminal:
+        //   - Program Files\PowerShell\<ver>\pwsh.exe (típica instalación MSI)
+        //   - Program Files (x86)\PowerShell\<ver>\pwsh.exe (32-bit en sistemas 64-bit)
+        //   - %USERPROFILE%\.dotnet\tools\pwsh.exe (dotnet tool install -g)
+        //   - where.exe pwsh.exe (PATH del usuario, fallback)
+        // La función debe combinar las 4 y dedupear case-insensitive.
+        var result = PwshDetector.CollectCandidates(
+            programFilesPwshExes:    new[] { @"C:\Program Files\PowerShell\7\pwsh.exe" },
+            programFilesX86PwshExes: new[] { @"C:\Program Files (x86)\PowerShell\7\pwsh.exe" },
+            dotnetToolsPwshExe:      @"C:\Users\u\.dotnet\tools\pwsh.exe",
+            whereOutput:             @"C:\Program Files\PowerShell\7\pwsh.exe" + "\n"
+                                   + @"c:\program files\powershell\7\pwsh.exe");
+
+        // Dedupe case-insensitive → 3 paths únicos.
+        Assert.Equal(3, result.Count);
+        Assert.Contains(result, p => p.Equals(@"C:\Program Files\PowerShell\7\pwsh.exe", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result, p => p.Equals(@"C:\Program Files (x86)\PowerShell\7\pwsh.exe", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result, p => p.Equals(@"C:\Users\u\.dotnet\tools\pwsh.exe", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void CollectCandidates_FiltraWindowsAppsDelWhere()
+    {
+        // El path bajo WindowsApps que devuelve where.exe (MSIX o App Execution
+        // Alias) no se debe propagar.
+        var result = PwshDetector.CollectCandidates(
+            programFilesPwshExes:    new[] { @"C:\Program Files\PowerShell\7\pwsh.exe" },
+            programFilesX86PwshExes: Array.Empty<string>(),
+            dotnetToolsPwshExe:      null,
+            whereOutput:             @"C:\Users\u\AppData\Local\Microsoft\WindowsApps\pwsh.exe");
+
+        Assert.Single(result);
+        Assert.DoesNotContain(result, p => p.Contains("WindowsApps", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void CollectCandidates_TodoVacio_DevuelveVacio()
+    {
+        var result = PwshDetector.CollectCandidates(
+            programFilesPwshExes: Array.Empty<string>(),
+            programFilesX86PwshExes: Array.Empty<string>(),
+            dotnetToolsPwshExe: null,
+            whereOutput: "");
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void CollectCandidates_SoloProgramFiles_NoNecesitaWhereExe()
+    {
+        // Caso clásico post-install MSI sin reboot: PATH no incluye pwsh todavía,
+        // así que where.exe no devuelve nada, pero la instalación SÍ está en
+        // Program Files\PowerShell\7. El detector debe encontrarla igual.
+        var result = PwshDetector.CollectCandidates(
+            programFilesPwshExes:    new[] { @"C:\Program Files\PowerShell\7\pwsh.exe" },
+            programFilesX86PwshExes: Array.Empty<string>(),
+            dotnetToolsPwshExe:      null,
+            whereOutput:             "");
+
+        Assert.Single(result);
+        Assert.Equal(@"C:\Program Files\PowerShell\7\pwsh.exe", result[0]);
+    }
 }
