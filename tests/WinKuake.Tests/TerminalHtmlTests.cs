@@ -169,14 +169,28 @@ public class TerminalHtmlTests
     }
 
     [Fact]
-    public void TerminalHtml_BindsCtrlShiftV_ToPaste_RespectingBracketedPaste()
+    public void TerminalHtml_DoesNotHandle_CtrlShiftV_Manually_To_AvoidDoublePaste()
     {
+        // Regresión: xterm.js intercepta nativamente el evento DOM 'paste' en su
+        // textarea helper y ya respeta bracketed paste. Si además agregamos un
+        // handler manual de keydown Ctrl+Shift+V que llame a term.paste(...),
+        // el texto se pega dos veces (devolver false de attachCustomKeyEventHandler
+        // no hace preventDefault sobre el paste event del browser).
+        // Por eso el bloque manual NO debe existir en attachCustomKeyEventHandler.
         var html = ReadHtml();
-        Assert.Matches(@"ctrlKey[^{]*shiftKey[^{]*KeyV", html);
-        Assert.Contains("clipboard.readText", html);
-        // Para respetar bracketed paste el handler debe delegar en term.paste(...)
-        // en vez de mandar el texto crudo al PTY.
-        Assert.Matches(@"term\.paste\s*\(", html);
+
+        // Aislamos el cuerpo de attachCustomKeyEventHandler para no chocar con
+        // PasteFromClipboard() (que vive en TerminalPane.xaml.cs y se invoca
+        // desde el menú contextual; ese path sí usa term.paste y es intencional).
+        var match = Regex.Match(
+            html,
+            @"attachCustomKeyEventHandler\s*\(\s*ev\s*=>\s*\{(?<body>[\s\S]*?)\n\s*\}\s*\)\s*;",
+            RegexOptions.Multiline);
+        Assert.True(match.Success, "No encontré attachCustomKeyEventHandler(ev => { ... })");
+
+        var body = match.Groups["body"].Value;
+        Assert.DoesNotMatch(@"KeyV", body);
+        Assert.DoesNotContain("clipboard.readText", body);
     }
 
     [Fact]
