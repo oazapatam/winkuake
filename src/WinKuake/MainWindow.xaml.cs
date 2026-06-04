@@ -36,6 +36,7 @@ public partial class MainWindow : Window
         TabsItems.ItemsSource = Tabs;
 
         SourceInitialized += OnSourceInitialized;
+        Activated         += OnActivated;
         Deactivated       += OnDeactivated;
         Closed            += OnClosed;
         SizeChanged       += OnSizeChanged;
@@ -345,6 +346,14 @@ public partial class MainWindow : Window
         if (m.Success && cwd.Length == m.Length)
             return "~";
         return cwd;
+    }
+
+    private void OnActivated(object? sender, EventArgs e)
+    {
+        // Si la ventana está al frente es porque el usuario quiere tipear.
+        // Empujamos el foco al terminal en cada activación (F12, click en
+        // taskbar, alt-tab) — barato e idempotente; si no hay sesión, no hace nada.
+        if (_animator?.IsVisible == true) FocusActiveTerminal();
     }
 
     private void OnDeactivated(object? sender, EventArgs e)

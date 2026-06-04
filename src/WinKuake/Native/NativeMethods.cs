@@ -141,6 +141,52 @@ internal static class NativeMethods
     [DllImport("user32.dll", SetLastError = true)]
     public static extern IntPtr SetFocus(IntPtr hWnd);
 
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool BringWindowToTop(IntPtr hWnd);
+
+    [DllImport("kernel32.dll")]
+    public static extern uint GetCurrentThreadId();
+
+    /// <summary>
+    /// Trae <paramref name="hWnd"/> al foreground saltándose el bloqueo de
+    /// "foreground stealing" de Windows. Un <c>SetForegroundWindow</c> a secas
+    /// desde un proceso en segundo plano (caso típico: pulsas F12 con otra app
+    /// al frente) lo ignora silenciosamente: la ventana aparece pero el foco de
+    /// teclado se queda en la app anterior. Enganchando temporalmente el input
+    /// del hilo de la ventana foreground con AttachThreadInput, Windows nos deja
+    /// robar el foco de verdad.
+    /// </summary>
+    public static void ForceForeground(IntPtr hWnd)
+    {
+        var foreground = GetForegroundWindow();
+        if (foreground == hWnd)
+        {
+            SetForegroundWindow(hWnd);
+            return;
+        }
+
+        uint foregroundThread = GetWindowThreadProcessId(foreground, out _);
+        uint thisThread = GetCurrentThreadId();
+
+        if (foregroundThread != 0 && foregroundThread != thisThread)
+        {
+            AttachThreadInput(foregroundThread, thisThread, true);
+            BringWindowToTop(hWnd);
+            SetForegroundWindow(hWnd);
+            AttachThreadInput(foregroundThread, thisThread, false);
+        }
+        else
+        {
+            BringWindowToTop(hWnd);
+            SetForegroundWindow(hWnd);
+        }
+    }
+
     // -- SendInput: sintetiza pulsaciones de teclado dirigidas al foco actual --
     [StructLayout(LayoutKind.Sequential)]
     public struct INPUT

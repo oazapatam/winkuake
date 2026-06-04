@@ -1,6 +1,8 @@
 using System;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Media.Animation;
+using WinKuake.Native;
 
 namespace WinKuake.Services;
 
@@ -28,7 +30,14 @@ public sealed class WindowAnimator
 
         _window.Top = topTarget - _window.Height;
         _window.Visibility = Visibility.Visible;
-        _window.Activate();
+
+        // Activate() de WPF se traduce en SetForegroundWindow, que Windows
+        // ignora cuando venimos de segundo plano (F12 con otra app al frente):
+        // la ventana se ve pero el teclado sigue yendo a la app anterior.
+        // ForceForeground se salta ese bloqueo para que el terminal reciba foco.
+        var hwnd = new WindowInteropHelper(_window).Handle;
+        if (hwnd != IntPtr.Zero) NativeMethods.ForceForeground(hwnd);
+        else _window.Activate();
 
         var anim = new DoubleAnimation(_window.Top, topTarget, TimeSpan.FromMilliseconds(durationMs))
         {
