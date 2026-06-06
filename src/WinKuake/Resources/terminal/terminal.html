@@ -191,15 +191,28 @@
   term.attachCustomKeyEventHandler(ev => {
     if (ev.type !== 'keydown') return true;
 
-    // Ctrl+Shift+C: copiar selección al clipboard
-    if (ev.ctrlKey && ev.shiftKey && ev.code === 'KeyC') {
+    // Ctrl+C: copiar selección (estilo Windows Terminal). Si hay selección,
+    // copia y limpia la selección. Si NO hay selección, dejamos pasar la tecla
+    // para que xterm mande ^C (SIGINT) al shell — el uso normal de Ctrl+C.
+    if (ev.ctrlKey && !ev.shiftKey && !ev.altKey && ev.code === 'KeyC') {
       const sel = term.getSelection();
       if (sel && sel.length > 0) {
         navigator.clipboard.writeText(sel).catch(()=>{});
+        term.clearSelection();
         return false;
       }
-      // sin selección: dejar pasar para que se interprete (no Ctrl+C porque shift)
       return true;
+    }
+    // Ctrl+Shift+C: alias de copiar. Lo consumimos SIEMPRE (return false),
+    // aunque no haya selección, para que NO llegue al WebView2: Ctrl+Shift+C es
+    // "inspeccionar elemento" en Edge/Chromium y abría la ventana de DevTools.
+    if (ev.ctrlKey && ev.shiftKey && !ev.altKey && ev.code === 'KeyC') {
+      const sel = term.getSelection();
+      if (sel && sel.length > 0) {
+        navigator.clipboard.writeText(sel).catch(()=>{});
+        term.clearSelection();
+      }
+      return false;
     }
     // Ctrl+Shift+V: NO lo manejamos acá. xterm.js intercepta nativamente el
     // evento DOM 'paste' del textarea helper y ya aplica bracketed paste si el

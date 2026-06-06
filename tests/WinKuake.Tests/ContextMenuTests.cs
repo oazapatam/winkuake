@@ -88,7 +88,7 @@ public class ContextMenuTests
     }
 
     [Theory]
-    [InlineData("copy",            "Copiar selección",   "Ctrl+Shift+C")]
+    [InlineData("copy",            "Copiar selección",   "Ctrl+C")]
     [InlineData("paste",           "Pegar",              "Ctrl+Shift+V")]
     [InlineData("find",            "Buscar",             "Ctrl+Shift+F")]
     [InlineData("splitVertical",   "Dividir vertical",   "Ctrl+(")]

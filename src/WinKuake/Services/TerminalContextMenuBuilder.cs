@@ -33,7 +33,7 @@ public static class TerminalContextMenuBuilder
         // los oficiales de Yakuake.
         return new List<ContextMenuItemSpec>
         {
-            new("copy",            "Copiar selección",   "Ctrl+Shift+C", Enabled: hasSelection),
+            new("copy",            "Copiar selección",   "Ctrl+C", Enabled: hasSelection),
             new("paste",           "Pegar",              "Ctrl+Shift+V", Enabled: true),
             new("find",            "Buscar",             "Ctrl+Shift+F", Enabled: true),
             ContextMenuItemSpec.Sep(),

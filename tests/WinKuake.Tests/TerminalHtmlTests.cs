@@ -160,12 +160,29 @@ public class TerminalHtmlTests
     }
 
     [Fact]
-    public void TerminalHtml_BindsCtrlShiftC_ToCopySelection()
+    public void TerminalHtml_BindsCtrlC_ToCopySelection()
     {
+        // Estilo Windows Terminal: Ctrl+C (sin shift) copia la selección.
         var html = ReadHtml();
-        Assert.Matches(@"ctrlKey[^{]*shiftKey[^{]*KeyC", html);
+        Assert.Matches(@"ctrlKey\s*&&\s*!ev\.shiftKey[^)]*KeyC", html);
         Assert.Contains("getSelection", html);
         Assert.Contains("clipboard.writeText", html);
+    }
+
+    [Fact]
+    public void TerminalHtml_ConsumesCtrlShiftC_SoItDoesNotOpenDevTools()
+    {
+        // Regresión: Ctrl+Shift+C es "inspeccionar elemento" en Edge/Chromium.
+        // Con AreDevToolsEnabled=true, dejar pasar la tecla (return true) abría
+        // la ventana de depuración. La rama Ctrl+Shift+C debe consumirla siempre.
+        var html = ReadHtml();
+        var m = Regex.Match(
+            html,
+            @"ev\.ctrlKey && ev\.shiftKey[^\n]*KeyC'\)\s*\{(?<body>[\s\S]*?)\n    \}",
+            RegexOptions.Multiline);
+        Assert.True(m.Success, "No encontré la rama Ctrl+Shift+C en el handler");
+        Assert.Contains("return false", m.Groups["body"].Value);
+        Assert.DoesNotContain("return true", m.Groups["body"].Value);
     }
 
     [Fact]
