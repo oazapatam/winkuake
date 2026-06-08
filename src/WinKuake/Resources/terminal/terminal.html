@@ -214,11 +214,19 @@
       }
       return false;
     }
-    // Ctrl+Shift+V: NO lo manejamos acá. xterm.js intercepta nativamente el
-    // evento DOM 'paste' del textarea helper y ya aplica bracketed paste si el
-    // shell lo activó (DECSET 2004, default en bash/zsh/pwsh modernos).
-    // Manejarlo además aquí causa doble pegado: devolver false sólo descarta
-    // la tecla en el pipeline de xterm, no hace preventDefault del paste event.
+    // Ctrl+V: pegar (atajo principal, estilo Windows). Devolvemos false para que
+    // xterm NO mande ^V (0x16) al shell; el browser dispara su evento 'paste'
+    // nativo, que xterm intercepta en su textarea helper y pega aplicando
+    // bracketed paste. NO pegamos a mano aquí: sumaría un segundo pegado encima
+    // del nativo (return false no hace preventDefault del paste event).
+    if (ev.ctrlKey && !ev.shiftKey && !ev.altKey && ev.code === 'KeyV') {
+      return false;
+    }
+    // Ctrl+Shift+V: alias de pegar, mismo mecanismo. NO lo manejamos acá: xterm.js
+    // intercepta nativamente el evento DOM 'paste' del textarea helper y ya aplica
+    // bracketed paste si el shell lo activó (DECSET 2004, default en bash/zsh/pwsh
+    // modernos). Manejarlo además aquí causa doble pegado: devolver false sólo
+    // descarta la tecla en el pipeline de xterm, no hace preventDefault del paste event.
     // Ctrl+Shift+Alt+F: búsqueda global multi-buffer (host la maneja).
     // Importante: chequear antes que Ctrl+Shift+F porque comparte el modifier set.
     if (ev.ctrlKey && ev.shiftKey && ev.altKey && ev.code === 'KeyF') {
@@ -423,6 +431,17 @@
       hasSelection: !!(sel && sel.length > 0)
     });
     return false;
+  });
+
+  // ---- Pegar con botón central del ratón (estilo primary-selection de Unix) --
+  // El botón central (la rueda) NO dispara evento 'paste' nativo, así que acá sí
+  // leemos el clipboard y pegamos a mano (un solo pegado). preventDefault evita
+  // el modo autoscroll del WebView2.
+  termEl.addEventListener('mousedown', ev => {
+    if (ev.button === 1) {
+      ev.preventDefault();
+      navigator.clipboard.readText().then(t => { if (t) term.paste(t); }).catch(()=>{});
+    }
   });
 
   // ---- Search overlay -------------------------------------------------------

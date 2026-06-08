@@ -186,19 +186,20 @@ public class TerminalHtmlTests
     }
 
     [Fact]
-    public void TerminalHtml_DoesNotHandle_CtrlShiftV_Manually_To_AvoidDoublePaste()
+    public void TerminalHtml_BindsCtrlV_ToPaste_WithoutDoublePaste()
     {
-        // Regresión: xterm.js intercepta nativamente el evento DOM 'paste' en su
-        // textarea helper y ya respeta bracketed paste. Si además agregamos un
-        // handler manual de keydown Ctrl+Shift+V que llame a term.paste(...),
-        // el texto se pega dos veces (devolver false de attachCustomKeyEventHandler
-        // no hace preventDefault sobre el paste event del browser).
-        // Por eso el bloque manual NO debe existir en attachCustomKeyEventHandler.
+        // Ctrl+V (sin shift, sin alt) pega. El handler intercepta la tecla y
+        // devuelve false para que xterm NO mande ^V (0x16) al shell; el evento
+        // 'paste' nativo del browser hace el pegado real (xterm lo intercepta en
+        // su textarea helper y respeta bracketed paste).
+        //
+        // Regresión: la rama Ctrl+V NO debe llamar term.paste()/clipboard.readText()
+        // dentro del handler. Devolver false de attachCustomKeyEventHandler no hace
+        // preventDefault sobre el paste event del browser, así que pegar también a
+        // mano duplicaría el texto. El pegado manual sólo es correcto donde NO hay
+        // paste event nativo (botón central del ratón y PasteFromClipboard del menú).
         var html = ReadHtml();
 
-        // Aislamos el cuerpo de attachCustomKeyEventHandler para no chocar con
-        // PasteFromClipboard() (que vive en TerminalPane.xaml.cs y se invoca
-        // desde el menú contextual; ese path sí usa term.paste y es intencional).
         var match = Regex.Match(
             html,
             @"attachCustomKeyEventHandler\s*\(\s*ev\s*=>\s*\{(?<body>[\s\S]*?)\n\s*\}\s*\)\s*;",
@@ -206,8 +207,23 @@ public class TerminalHtmlTests
         Assert.True(match.Success, "No encontré attachCustomKeyEventHandler(ev => { ... })");
 
         var body = match.Groups["body"].Value;
-        Assert.DoesNotMatch(@"KeyV", body);
+        // Hay una rama Ctrl+V (sin shift) que captura KeyV.
+        Assert.Matches(@"ctrlKey\s*&&\s*!ev\.shiftKey[^)]*KeyV", body);
+        // Pero NO pega a mano dentro del handler (causaría doble pegado).
         Assert.DoesNotContain("clipboard.readText", body);
+        Assert.DoesNotContain("term.paste", body);
+    }
+
+    [Fact]
+    public void TerminalHtml_MiddleClick_Pastes()
+    {
+        // Botón central del ratón pega (estilo primary-selection de Unix). El
+        // botón central NO dispara evento 'paste' nativo, así que acá sí leemos
+        // el clipboard y llamamos term.paste() a mano (un solo pegado).
+        var html = ReadHtml();
+        Assert.Matches(@"button\s*===\s*1", html);
+        Assert.Contains("clipboard.readText", html);
+        Assert.Contains("term.paste", html);
     }
 
     [Fact]

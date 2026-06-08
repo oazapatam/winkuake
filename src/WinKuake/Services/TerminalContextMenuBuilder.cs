@@ -34,7 +34,7 @@ public static class TerminalContextMenuBuilder
         return new List<ContextMenuItemSpec>
         {
             new("copy",            "Copiar selección",   "Ctrl+C", Enabled: hasSelection),
-            new("paste",           "Pegar",              "Ctrl+Shift+V", Enabled: true),
+            new("paste",           "Pegar",              "Ctrl+V",       Enabled: true),
             new("find",            "Buscar",             "Ctrl+Shift+F", Enabled: true),
             ContextMenuItemSpec.Sep(),
             new("splitVertical",   "Dividir vertical",   "Ctrl+(",       Enabled: true),

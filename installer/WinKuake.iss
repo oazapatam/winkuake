@@ -13,7 +13,7 @@
 ; ===========================================================================
 
 #define AppName        "WinKuake"
-#define AppVersion     "0.3.0"
+#define AppVersion     "0.4.0"
 #define AppPublisher   "WinKuake"
 #define AppExeName     "WinKuake.exe"
 #define AppId          "{{C7D2A8E9-3F4B-4E1A-9C5D-1A2B3C4D5E6F}"
@@ -44,8 +44,12 @@ SolidCompression=yes
 WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+; Instalación per-user, sin UAC: PrivilegesRequired=lowest hace que el setup
+; corra con los permisos del usuario actual y {autopf} resuelva a
+; {localappdata}\Programs en vez de Program Files. NO usamos
+; PrivilegesRequiredOverridesAllowed: ese override mostraba el diálogo
+; "instalar para todos los usuarios", que dispara la elevación a admin.
 PrivilegesRequired=lowest
-PrivilegesRequiredOverridesAllowed=dialog
 UninstallDisplayName={#AppName}
 UninstallDisplayIcon={app}\{#AppExeName}
 VersionInfoVersion={#AppVersion}
