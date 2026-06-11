@@ -21,6 +21,16 @@ public partial class MainWindow : Window
     private readonly Dictionary<int, TerminalControl> _controls = new();
     private WindowAnimator? _animator;
     private bool _firstShown;
+
+    /// <summary>
+    /// True mientras precargamos las sesiones al arranque con la ventana fuera
+    /// de pantalla. Durante esta fase NO colapsamos los tabs inactivos: un
+    /// WebView2 colapsado (tamaño 0, sin layout) difiere su init y los tabs
+    /// tardan decenas de segundos en calentar. Dejándolos visibles off-screen,
+    /// todos sus WebView2 + shells arrancan en paralelo. Se desactiva en el
+    /// primer F12 (<see cref="FinalizePreload"/>).
+    /// </summary>
+    private bool _preloading;
     private TerminalProfile[] _profiles = System.Array.Empty<TerminalProfile>();
 
     /// <summary>Pestañas mostradas en la tab bar inferior. ViewModel del manager.</summary>
@@ -91,7 +101,19 @@ public partial class MainWindow : Window
     {
         if (_firstShown) return;
         _firstShown = true;
+        _preloading = true;
         RestoreSessionOrCreateDefault();
+    }
+
+    /// <summary>
+    /// Cierra la fase de precarga: impone el modelo normal de visibilidad (solo
+    /// el tab activo visible, el resto colapsado). Se llama en el primer F12,
+    /// cuando los WebView2 ya calentaron en background.
+    /// </summary>
+    private void FinalizePreload()
+    {
+        _preloading = false;
+        OnActiveChanged(_sessions.Active);
     }
 
     /// <summary>Dev-only: dispara el flujo de mostrar desde fuera (sin esperar F12).</summary>
@@ -150,6 +172,10 @@ public partial class MainWindow : Window
         else
         {
             ApplyGeometry();
+            // Veníamos de precarga: ahora que el usuario muestra la ventana,
+            // colapsamos los tabs inactivos (su WebView2/shell ya calentó en
+            // background) para mostrar solo el activo.
+            if (_preloading) FinalizePreload();
             // Foco al terminal cuando termina el slide. Si no, hay que clickear
             // el pane para poder tipear porque WPF deja el foco en el chrome.
             _animator.Show(top, _settings.AnimationMs, FocusActiveTerminal);
@@ -249,7 +275,10 @@ public partial class MainWindow : Window
 
     private void OnSessionAdded(TerminalSession s)
     {
-        var ctrl = new TerminalControl { Visibility = Visibility.Collapsed };
+        // Durante la precarga el control nace visible (off-screen) para que su
+        // WebView2 caliente ya; fuera de precarga nace colapsado y OnActiveChanged
+        // lo muestra si toca.
+        var ctrl = new TerminalControl { Visibility = _preloading ? Visibility.Visible : Visibility.Collapsed };
         _controls[s.Id] = ctrl;
         TerminalContainer.Children.Add(ctrl);
 
@@ -319,6 +348,11 @@ public partial class MainWindow : Window
 
     private void OnActiveChanged(TerminalSession? active)
     {
+        // Durante la precarga dejamos TODOS los controles visibles (la ventana
+        // está fuera de pantalla) para que cada WebView2 se inicialice en
+        // paralelo. Solo sincronizamos el flag IsActive de la tab bar.
+        if (_preloading) { foreach (var t in Tabs) t.IsActive = (t.Index == active?.Id); return; }
+
         foreach (var kv in _controls)
             kv.Value.Visibility = (kv.Key == active?.Id) ? Visibility.Visible : Visibility.Collapsed;
         foreach (var tab in Tabs)
