@@ -271,6 +271,20 @@ public class TerminalHtmlTests
     }
 
     [Fact]
+    public void TerminalHtml_CtrlShiftDigitJumpToTab_ExcluyeParentesis()
+    {
+        // Regresión: en layouts no-US el split Yakuake (Ctrl+( / Ctrl+)) es
+        // físicamente Ctrl+Shift+8 / Ctrl+Shift+9. El handler de jump-to-tab por
+        // Ctrl+Shift+Dígito corre ANTES que el de split; si no excluye '(' y ')'
+        // se traga la tecla (intenta saltar a una tab inexistente) y el split
+        // nunca dispara. El guard debe excluir ambos caracteres.
+        var html = ReadHtml();
+        Assert.Matches(
+            @"ctrlKey[^{]*shiftKey[^{]*Digit[^{]*ev\.key\s*!==\s*['""]\(['""][^{]*ev\.key\s*!==\s*['""]\)['""][\s\S]*?activateAt",
+            html);
+    }
+
+    [Fact]
     public void TerminalHtml_BindsCtrlShiftR_ToClosePane()
     {
         // Yakuake default: Ctrl+Shift+R = close-active-terminal (cerrar pane).

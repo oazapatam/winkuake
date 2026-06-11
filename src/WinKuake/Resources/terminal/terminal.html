@@ -281,8 +281,12 @@
       postToHost({ type: 'prevTab' });
       return false;
     }
-    // Ctrl+Shift+1..9 : jump-to-tab (alternativa, mantenida por compat)
-    if (ev.ctrlKey && ev.shiftKey && ev.code && ev.code.startsWith('Digit')) {
+    // Ctrl+Shift+1..9 : jump-to-tab (alternativa, mantenida por compat).
+    // Excluimos '(' y ')': en layouts no-US el split Yakuake (Ctrl+( / Ctrl+))
+    // es Ctrl+Shift+8 / Ctrl+Shift+9, que aquí caería como jump-to-tab y
+    // robaría la tecla al split. Dejamos que caiga a los handlers de split.
+    if (ev.ctrlKey && ev.shiftKey && ev.code && ev.code.startsWith('Digit')
+        && ev.key !== '(' && ev.key !== ')') {
       const n = parseInt(ev.code.substring(5), 10);
       if (n >= 1 && n <= 9) {
         postToHost({ type: 'activateAt', index: n });
