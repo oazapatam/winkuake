@@ -70,8 +70,28 @@ public partial class MainWindow : Window
         Top = -100000;
         ShowActivated = false;
         Show();
-        Visibility = Visibility.Collapsed;
         Opacity = _settings.Opacity;
+
+        // Precargamos las sesiones ya, con la ventana renderizada pero fuera de
+        // pantalla (Top=-100000) — NO colapsada. Una ventana Collapsed no hace
+        // layout de sus hijos, así que el WebView2 nunca dispararía su Loaded ni
+        // inicializaría ConPTY. Dejándola Visible off-screen, el motor (WebView2
+        // + xterm.js + shell) arranca en background y el primer F12 muestra el
+        // prompt listo, sin el lag de inicializar todo en ese momento.
+        // ShowInTaskbar=False + WS_EX_TOOLWINDOW la mantienen fuera de taskbar y
+        // Alt+Tab; al estar off-screen el usuario no ve nada.
+        PreloadSessions();
+    }
+
+    /// <summary>
+    /// Crea las terminales (restaurando la última sesión o una default) en el
+    /// arranque, antes del primer F12. Idempotente vía <see cref="_firstShown"/>.
+    /// </summary>
+    private void PreloadSessions()
+    {
+        if (_firstShown) return;
+        _firstShown = true;
+        RestoreSessionOrCreateDefault();
     }
 
     /// <summary>Dev-only: dispara el flujo de mostrar desde fuera (sin esperar F12).</summary>
