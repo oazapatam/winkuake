@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Instrucciones para Claude Code — proyecto WinKuake
 
 > Este archivo contiene **reglas operativas** para los agentes Claude que trabajan
@@ -58,6 +62,25 @@ iscc installer\WinKuake.iss
 # %LocalAppData%\WinKuake\WebView2\ — el .exe es portable, los datos no).
 .\build-portable.ps1
 ```
+
+## Arquitectura (lo que exige leer varios archivos)
+
+Flujo de datos de un terminal: `ConPtyService` (pseudo-consola Win32) → `TerminalPane` → `PostWebMessage` → `terminal.html` (xterm.js) y de vuelta por `WebMessageReceived`.
+
+- **`TerminalPane`** ([Views/TerminalPane.xaml.cs](src/WinKuake/Views/TerminalPane.xaml.cs)): unidad mínima = una WebView2 + un `ConPtyService`. Protocolo JSON con el JS: mensajes `type` (`ready`, `in`, `resize`, `cwd`, `openUrl`, `nextTab`…) en `OnWebMessage`; hacia JS `out`, `config`, `clear`, `reset`, `fontSize`, `scrollToLine`. El PTY solo arranca cuando JS manda `ready` (el comando queda pendiente hasta entonces). Todas las WebViews comparten un único `CoreWebView2Environment` estático (si no, el 2º pane falla con "different environment"); `terminal/` se sirve vía virtual host mapping. WPF re-dispara `Loaded` al reparentar (splits): hay un guard `_webInitStarted`; sin él cada tecla se escribe N veces.
+- **`TerminalControl`**: contenido de un tab; árbol recursivo de `TerminalPane` separados por `GridSplitter` (cada split reemplaza el hijo del `Border` "PaneSlot"). Reenvía los eventos de los panes a `MainWindow`.
+- **`MainWindow`** (~1000 líneas): ventana drop-down, tabs (`TabItem`), workspaces, atajos, broadcast, persistencia de layout (`PersistedTab`/`PersistedSplitNode`/`Workspace` en `AppSettings`). La lógica testeable se extrae a servicios estáticos o puros.
+- **`TerminalSessionsManager`**: estado puro de tabs (sin UI) — por eso es testeable. `TerminalProfile` es un record; `WtArgs` es un nombre heredado, no implica `wt.exe`.
+- **Perfiles**: `ProfileRegistry` ejecuta los `IProfileDetector` de `Services/Detectors/`; `UserProfile` (settings) se mezcla vía `ProfileMapping`.
+- **Datos en disco**: `%AppData%\WinKuake\` (`settings.json`, `winkuake.log` vía `CrashLogger`); caché WebView2 en `%LocalAppData%\WinKuake\WebView2\`.
+- `UseWindowsForms` está activo en el csproj solo por utilidades (bandeja del sistema/diálogos); la UI sigue siendo 100 % WPF.
+
+## Tests
+
+- xUnit en `tests/WinKuake.Tests`; referencia el proyecto principal con `InternalsVisibleTo`.
+- Tests que tocan WPF necesitan STA: usar `StaTestRunner.OnStaThread(() => ...)` dentro de un `[Fact]` (ver `WpfFactAttribute.cs`).
+- Los tests que lanzan procesos reales llevan `[Trait("Category","integration")]`. Excluirlos: `dotnet test tests\WinKuake.Tests\WinKuake.Tests.csproj --filter "Category!=integration"`.
+- Los `*AuditTests` y `TerminalHtmlTests` verifican por regex el código fuente / `terminal.html`; al renombrar o mover atajos o handlers JS puede romperse un test sin que cambie el comportamiento.
 
 ## Test-Driven Development (regla del proyecto)
 
