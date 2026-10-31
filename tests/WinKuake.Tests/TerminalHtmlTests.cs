@@ -238,7 +238,7 @@ public class TerminalHtmlTests
     public void TerminalHtml_BindsCtrlShiftArrowRight_ToNextTab()
     {
         // Ctrl+Shift+→ : siguiente tab. Equivalente teclas-flechas al Ctrl+Tab
-        // existente, sin chocar con la selección de texto (que sería Shift+→ sola).
+        // existente, variante con Ctrl que se conserva junto a Shift+→ solo.
         var html = ReadHtml();
         Assert.Matches(@"ctrlKey[^{]*shiftKey[^{]*ArrowRight[\s\S]*?nextTab", html);
     }
@@ -248,6 +248,22 @@ public class TerminalHtmlTests
     {
         var html = ReadHtml();
         Assert.Matches(@"ctrlKey[^{]*shiftKey[^{]*ArrowLeft[\s\S]*?prevTab", html);
+    }
+
+    [Fact]
+    public void TerminalHtml_BindsShiftArrowRight_ToNextTab()
+    {
+        // Shift+→ solo (sin Ctrl ni Alt): siguiente tab. Pisa la selección de
+        // texto con Shift+flechas del shell, decisión explícita del usuario.
+        var html = ReadHtml();
+        Assert.Matches(@"!ev\.ctrlKey\s*&&\s*ev\.shiftKey\s*&&\s*!ev\.altKey\s*&&\s*ev\.code === 'ArrowRight'\)\s*\{\s*postToHost\(\{ type: 'nextTab' \}\)", html);
+    }
+
+    [Fact]
+    public void TerminalHtml_BindsShiftArrowLeft_ToPrevTab()
+    {
+        var html = ReadHtml();
+        Assert.Matches(@"!ev\.ctrlKey\s*&&\s*ev\.shiftKey\s*&&\s*!ev\.altKey\s*&&\s*ev\.code === 'ArrowLeft'\)\s*\{\s*postToHost\(\{ type: 'prevTab' \}\)", html);
     }
 
     // ---- Yakuake defaults --------------------------------------------------

@@ -271,8 +271,17 @@
       postToHost({ type: 'prevTab' });
       return false;
     }
-    // Ctrl+Shift+→ / Ctrl+Shift+← : navegar entre tabs con flechas.
-    // No usamos Shift+arrow solo porque chocaría con la selección de texto.
+    // Shift+→ / Shift+← : navegar entre tabs. Pisa la selección de texto con
+    // Shift+flechas del shell (PSReadLine, etc.); es decisión explícita del usuario.
+    if (!ev.ctrlKey && ev.shiftKey && !ev.altKey && ev.code === 'ArrowRight') {
+      postToHost({ type: 'nextTab' });
+      return false;
+    }
+    if (!ev.ctrlKey && ev.shiftKey && !ev.altKey && ev.code === 'ArrowLeft') {
+      postToHost({ type: 'prevTab' });
+      return false;
+    }
+    // Ctrl+Shift+→ / Ctrl+Shift+← : mismo efecto, se mantiene por compatibilidad.
     if (ev.ctrlKey && ev.shiftKey && ev.code === 'ArrowRight') {
       postToHost({ type: 'nextTab' });
       return false;
