@@ -150,6 +150,27 @@ public class TerminalPaneInitAuditTests
     /// nivel) del método indicado. Devuelve null si no se encuentra. Pensado
     /// para auditorías de archivos fuente — no es un parser de C# completo.
     /// </summary>
+    // ---- UTF-8: caracteres multibyte partidos entre lecturas del PTY -------
+
+    [Fact]
+    public void TerminalPane_OnPtyOutput_DecodificaConDecoderConEstado()
+    {
+        // Encoding.UTF8.GetString por chunk corrompe (U+FFFD) los caracteres
+        // multibyte que ConPTY parte entre dos lecturas.
+        var body = ExtractMethodBody(PaneSrc, "OnPtyOutput");
+        Assert.NotNull(body);
+        Assert.Contains("_utf8.Decode(", body!);
+        Assert.DoesNotContain("GetString(", body.Replace("var preview = Encoding.UTF8.GetString(data.Span)", ""));
+    }
+
+    [Fact]
+    public void TerminalPane_Restart_ReseteaElDecoder()
+    {
+        var body = ExtractMethodBody(PaneSrc, "Restart");
+        Assert.NotNull(body);
+        Assert.Contains("_utf8.Reset()", body!);
+    }
+
     private static string? ExtractMethodBody(string src, string methodName)
     {
         // Buscamos la DECLARACIÓN (con modificador o tipo retorno antes),

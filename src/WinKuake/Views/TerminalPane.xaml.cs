@@ -20,6 +20,8 @@ namespace WinKuake.Views;
 public partial class TerminalPane : UserControl
 {
     private ConPtyService _pty = new();
+    // Un decoder con estado por pane: un carácter multibyte puede llegar partido entre lecturas.
+    private readonly Utf8StreamDecoder _utf8 = new();
     private bool _webReady;
     // Guard contra reinicialización: WPF re-dispara Loaded en cada
     // reparenting del visual tree (split mueve el pane existente entre
@@ -202,6 +204,7 @@ public partial class TerminalPane : UserControl
         try { _pty.OutputReceived -= OnPtyOutput; } catch { }
         try { _pty.Dispose(); } catch { }
         _pty = new ConPtyService();
+        _utf8.Reset();
         _pty.OutputReceived += OnPtyOutput;
         Dispatcher.InvokeAsync(() =>
         {
@@ -336,7 +339,8 @@ public partial class TerminalPane : UserControl
             if (preview.Length > 80) preview = preview[..80] + "…";
             CrashLogger.Info($"OnPtyOutput primer chunk: {data.Length} bytes: \"{preview}\"");
         }
-        var text = Encoding.UTF8.GetString(data.Span);
+        var text = _utf8.Decode(data.Span);
+        if (text.Length == 0) return;
         Dispatcher.InvokeAsync(() =>
             WebView.CoreWebView2?.PostWebMessageAsString(text));
     }

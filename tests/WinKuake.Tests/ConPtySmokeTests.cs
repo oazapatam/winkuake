@@ -26,11 +26,12 @@ public class ConPtySmokeTests
         using var pty = new ConPtyService();
         var sb = new StringBuilder();
         var sync = new object();
+        var decoder = new Utf8StreamDecoder();
         var doneEvt = new ManualResetEventSlim(false);
 
         pty.OutputReceived += data =>
         {
-            lock (sync) sb.Append(Encoding.UTF8.GetString(data.Span));
+            lock (sync) sb.Append(decoder.Decode(data.Span));
         };
         pty.Exited += () => doneEvt.Set();
 
@@ -84,5 +85,20 @@ public class ConPtySmokeTests
 
         Assert.False(timedOut, "powershell -NoProfile no terminó en 15s. Output:\n" + output);
         Assert.Contains("PS_READY", output);
+    }
+
+    [Fact]
+    public void PowerShell_NonAsciiOutput_ArrivesIntactAsUtf8()
+    {
+        // Camino real ConPTY -> Utf8StreamDecoder: acentos, CJK y box-drawing
+        // no deben degradarse a U+FFFD ni a mojibake.
+        const string texto = "ñandú 日本語 ┌─┐";
+        var (output, timedOut) = RunAndCapture(
+            $"powershell.exe -NoLogo -NoProfile -Command \"Write-Host '{texto}'; exit 0\"",
+            TimeSpan.FromSeconds(15));
+
+        Assert.False(timedOut, "powershell no terminó en 15s. Output:\n" + output);
+        Assert.Contains(texto, output);
+        Assert.DoesNotContain('�', output);
     }
 }
